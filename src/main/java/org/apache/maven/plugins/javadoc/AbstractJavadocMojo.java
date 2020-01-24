@@ -462,6 +462,14 @@ public abstract class AbstractJavadocMojo
     private JavaVersion javadocRuntimeVersion;
 
     /**
+     * Even if Java version supports modules, deactivate any module path features.
+     *
+     * @since 3.2
+     */
+    @Parameter( property = "maven.javadoc.noModulePath", defaultValue = "false" )
+    private boolean noModulePath;
+
+    /**
      * Specifies whether the Javadoc generation should be skipped.
      *
      * @since 2.5
@@ -4940,7 +4948,8 @@ public abstract class AbstractJavadocMojo
 
         Map<String, JavaModuleDescriptor> allModuleDescriptors = new HashMap<>();
 
-        boolean supportModulePath = javadocRuntimeVersion.isAtLeast( "9" )
+        boolean supportModulePath = !noModulePath
+            && javadocRuntimeVersion.isAtLeast( "9" )
             && ( source == null || JavaVersion.parse( source ).isAtLeast( "9" ) )
             && ( release == null || JavaVersion.parse( release ).isAtLeast( "9" ) );
 
