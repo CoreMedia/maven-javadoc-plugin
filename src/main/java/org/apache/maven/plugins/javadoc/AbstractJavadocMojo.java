@@ -563,7 +563,6 @@ public abstract class AbstractJavadocMojo
      *
      * @see #links
      * @see #javaApiLinks
-     * @see #DEFAULT_JAVA_API_LINKS
      * @since 2.6
      */
     @Parameter( property = "detectJavaApiLink", defaultValue = "true" )
@@ -2561,7 +2560,7 @@ public abstract class AbstractJavadocMojo
      * Method to get the excluded source files from the javadoc and create the argument string
      * that will be included in the javadoc commandline execution.
      *
-     * @param sourceFolders the collection of paths to the source files
+     * @param sourcePaths the collection of paths to the source files
      * @return a String that contains the exclude argument that will be used by javadoc
      * @throws MavenReportException
      */
