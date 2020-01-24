@@ -1707,6 +1707,16 @@ public abstract class AbstractJavadocMojo
     private List<AdditionalDependency> additionalDependencies;
 
     /**
+     * Compute sourceFileIncludes based on package-list files of all modules collected via dependencies.
+     * Also, a new package-list file is generated that accumulates all other package-list files and it
+     * is added to the resulting JavaDoc.
+     *
+     * @since 3.2
+     */
+    @Parameter( defaultValue = "false", property = "maven.javadoc.usePackageListFiles" )
+    private boolean usePackageListFiles;
+
+    /**
      * Include filters on the source files. Default is **\/\*.java.
      * These are ignored if you specify subpackages or subpackage excludes.
      *
@@ -1994,6 +2004,20 @@ public abstract class AbstractJavadocMojo
 
         Collection<Path> collectedSourcePaths = collect( sourcePaths.values() );
 
+        List<String> allPackages = null;
+        if ( usePackageListFiles )
+        {
+            try
+            {
+                allPackages = PackageListUtil.collectPackageLists( collectedSourcePaths );
+            }
+            catch ( IllegalStateException e )
+            {
+                throw new MavenReportException( e.getMessage(), e );
+            }
+            sourceFileIncludes = PackageListUtil.convertPackageListToSourceFileIncludes( allPackages );
+        }
+
         Map<Path, Collection<String>> files = getFiles( collectedSourcePaths );
         if ( !canGenerateReport( files ) )
         {
@@ -2039,6 +2063,19 @@ public abstract class AbstractJavadocMojo
             throw new MavenReportException( "IOException: " + getOutputDirectory() + " is not writable." );
         }
         javadocOutputDirectory.mkdirs();
+
+        if ( allPackages != null )
+        {
+            try
+            {
+                PackageListUtil.writePackageList( allPackages, javadocOutputDirectory );
+            }
+            catch ( IOException e )
+            {
+                throw new MavenReportException( "Cannot write collected package-list file in "
+                    + javadocOutputDirectory.getAbsolutePath(), e );
+            }
+        }
 
         // ----------------------------------------------------------------------
         // Copy all resources
