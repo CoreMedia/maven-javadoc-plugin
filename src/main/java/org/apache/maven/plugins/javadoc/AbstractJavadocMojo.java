@@ -2015,6 +2015,13 @@ public abstract class AbstractJavadocMojo
             {
                 throw new MavenReportException( e.getMessage(), e );
             }
+            if ( allPackages.isEmpty() )
+            {
+                getLog().info( "Skipping javadoc generation, because usePackageListFiles is set, "
+                    + "but no package-list files were found." );
+                return;
+            }
+
             sourceFileIncludes = PackageListUtil.convertPackageListToSourceFileIncludes( allPackages );
         }
 
