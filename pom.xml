@@ -426,10 +426,12 @@ under the License.
         <groupId>org.apache.maven.plugins</groupId>
         <artifactId>maven-surefire-plugin</artifactId>
         <configuration>
+          <!-- For CoreMedia version, skip running ITs by removing run-its from release profiles: -->
+          <skip>true</skip>
           <systemPropertyVariables>
             <maven.home>${maven.home}</maven.home>
             <https.protocols>${https.protocols}</https.protocols>
-          </systemPropertyVariables> 
+          </systemPropertyVariables>
         </configuration>
       </plugin>
       <plugin>
