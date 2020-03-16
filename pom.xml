@@ -31,7 +31,7 @@ under the License.
 
   <groupId>com.coremedia.internal.org.apache.maven.plugins</groupId>
   <artifactId>maven-javadoc-plugin</artifactId>
-  <version>3.2.0-SNAPSHOT</version>
+  <version>3.2.0</version>
   <packaging>maven-plugin</packaging>
 
   <name>Apache Maven Javadoc Plugin</name>
@@ -49,7 +49,7 @@ under the License.
     <connection>scm:git:https://gitbox.apache.org/repos/asf/maven-javadoc-plugin.git</connection>
     <developerConnection>scm:git:https://gitbox.apache.org/repos/asf/maven-javadoc-plugin.git</developerConnection>
     <url>https://github.com/apache/maven-javadoc-plugin/tree/${project.scm.tag}</url>
-    <tag>HEAD</tag>
+    <tag>maven-javadoc-plugin-3.2.0</tag>
   </scm>
   <issueManagement>
     <system>jira</system>
