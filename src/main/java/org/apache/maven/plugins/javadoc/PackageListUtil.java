@@ -41,8 +41,13 @@ class PackageListUtil
 
     static List<String> readPackageList( File packageListDir ) throws IOException
     {
+        return readPackageList( packageListDir, PACKAGE_LIST );
+    }
+
+    static List<String> readPackageList( File packageListDir, String packageListFileName ) throws IOException
+    {
         List<String> packageList;
-        File packageListFile = new File( packageListDir, PACKAGE_LIST );
+        File packageListFile = new File( packageListDir, packageListFileName );
         try ( BufferedReader br = new BufferedReader( new FileReader( packageListFile ) ) )
         {
             packageList = br.lines().filter( PackageListUtil::isPackage ).collect( Collectors.toList() );
@@ -85,14 +90,19 @@ class PackageListUtil
 
     static List<String> collectPackageLists( Collection<Path> sourcePaths )
     {
+        return collectPackageLists( sourcePaths, PACKAGE_LIST );
+    }
+
+    static List<String> collectPackageLists( Collection<Path> sourcePaths, String packageListFileName )
+    {
         List<String> allPackages;
         allPackages = sourcePaths.stream()
-            .filter( sourcePath -> Files.exists( sourcePath.resolve( "package-list" ) ) )
+            .filter( sourcePath -> Files.exists( sourcePath.resolve( packageListFileName ) ) )
             .flatMap( sourcePath ->
             {
                 try
                 {
-                    return readPackageList( sourcePath.toFile() ).stream();
+                    return readPackageList( sourcePath.toFile(), packageListFileName ).stream();
                 }
                 catch ( IOException e )
                 {
