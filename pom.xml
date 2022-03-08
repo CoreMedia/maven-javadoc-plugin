@@ -367,6 +367,10 @@ under the License.
           <artifactId>apache-rat-plugin</artifactId>
           <configuration>
             <excludes combine.children="append">
+              <!-- local build files -->
+              <exclude>.m2/**/*</exclude>
+              <exclude>.config/google-cloud-tools-java/jib/config.json</exclude>
+              <exclude>tmp-mvn-build-log.txt</exclude>
               <!-- Photoshop files are binary -->
               <exclude>**/*.psd</exclude>
               <!-- Checksum files cannot contain a license header -->
