@@ -31,7 +31,7 @@ under the License.
 
   <groupId>com.coremedia.internal.org.apache.maven.plugins</groupId>
   <artifactId>maven-javadoc-plugin</artifactId>
-  <version>3.3.0-SNAPSHOT</version>
+  <version>3.2.0-1-SNAPSHOT</version>
   <packaging>maven-plugin</packaging>
 
   <name>Apache Maven Javadoc Plugin</name>

@@ -1720,7 +1720,7 @@ public abstract class AbstractJavadocMojo
      * Configures the name of the package-list files used to determine the sourceFileIncludes
      * when {@code usePackageListFiles} is true.
      *
-     * @since 3.3
+     * @since 3.2.0-1
      */
     @Parameter( defaultValue = "package-list", property = "maven.javadoc.sourcePackageListFileName" )
     private String sourcePackageListFileName;
