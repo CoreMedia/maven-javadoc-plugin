@@ -31,7 +31,7 @@ under the License.
 
   <groupId>com.coremedia.internal.org.apache.maven.plugins</groupId>
   <artifactId>maven-javadoc-plugin</artifactId>
-  <version>3.2.1-SNAPSHOT</version>
+  <version>3.2.0-1-SNAPSHOT</version>
   <packaging>maven-plugin</packaging>
 
   <name>Apache Maven Javadoc Plugin</name>
@@ -367,6 +367,10 @@ under the License.
           <artifactId>apache-rat-plugin</artifactId>
           <configuration>
             <excludes combine.children="append">
+              <!-- local build files -->
+              <exclude>.m2/**/*</exclude>
+              <exclude>.config/google-cloud-tools-java/jib/config.json</exclude>
+              <exclude>tmp-mvn-build-log.txt</exclude>
               <!-- Photoshop files are binary -->
               <exclude>**/*.psd</exclude>
               <!-- Checksum files cannot contain a license header -->

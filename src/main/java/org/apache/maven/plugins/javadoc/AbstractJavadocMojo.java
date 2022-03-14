@@ -1717,6 +1717,15 @@ public abstract class AbstractJavadocMojo
     private boolean usePackageListFiles;
 
     /**
+     * Configures the name of the package-list files used to determine the sourceFileIncludes
+     * when {@code usePackageListFiles} is true.
+     *
+     * @since 3.2.0-1
+     */
+    @Parameter( defaultValue = "package-list", property = "maven.javadoc.sourcePackageListFileName" )
+    private String sourcePackageListFileName;
+
+    /**
      * Include filters on the source files. Default is **\/\*.java.
      * These are ignored if you specify subpackages or subpackage excludes.
      *
@@ -2009,7 +2018,7 @@ public abstract class AbstractJavadocMojo
         {
             try
             {
-                allPackages = PackageListUtil.collectPackageLists( collectedSourcePaths );
+                allPackages = PackageListUtil.collectPackageLists( collectedSourcePaths, sourcePackageListFileName );
             }
             catch ( IllegalStateException e )
             {
