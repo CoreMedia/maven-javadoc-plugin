@@ -125,6 +125,7 @@ under the License.
     <projectInfoReportsPluginVersion>3.4.2</projectInfoReportsPluginVersion>
     <project.build.outputTimestamp>2023-02-12T17:50:15Z</project.build.outputTimestamp>
     <slf4jVersion>1.7.36</slf4jVersion>
+    <maven-javadoc-plugin.version>3.5.0</maven-javadoc-plugin.version>
   </properties>
 
   <dependencyManagement>
@@ -415,7 +416,7 @@ under the License.
         <plugin>
           <groupId>org.apache.maven.plugins</groupId>
           <artifactId>maven-javadoc-plugin</artifactId>
-          <version>${project.version}</version>
+          <version>${maven-javadoc-plugin.version}</version>
           <configuration>
             <failOnWarnings>false</failOnWarnings>
           </configuration>
@@ -471,8 +472,6 @@ under the License.
             <phase>none</phase>
           </execution>
         </executions>
-        <configuration>
-        </configuration>
       </plugin>
       <plugin>
         <groupId>org.apache.maven.plugins</groupId>
