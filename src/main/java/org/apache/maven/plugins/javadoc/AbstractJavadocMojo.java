@@ -133,7 +133,6 @@ import org.eclipse.aether.RepositorySystemSession;
 import org.eclipse.aether.artifact.ArtifactTypeRegistry;
 import org.eclipse.aether.artifact.DefaultArtifact;
 import org.eclipse.aether.collection.CollectRequest;
-import org.eclipse.aether.graph.DefaultDependencyNode;
 import org.eclipse.aether.graph.DependencyFilter;
 import org.eclipse.aether.resolution.ArtifactRequest;
 import org.eclipse.aether.resolution.ArtifactResolutionException;
@@ -1556,7 +1555,7 @@ public abstract class AbstractJavadocMojo extends AbstractMojo {
      *
      * @since 3.2
      */
-    @Parameter( defaultValue = "false", property = "maven.javadoc.usePackageListFiles" )
+    @Parameter(defaultValue = "false", property = "maven.javadoc.usePackageListFiles")
     private boolean usePackageListFiles;
 
     /**
@@ -1565,7 +1564,7 @@ public abstract class AbstractJavadocMojo extends AbstractMojo {
      *
      * @since 3.2.0-1
      */
-    @Parameter( defaultValue = "package-list", property = "maven.javadoc.sourcePackageListFileName" )
+    @Parameter(defaultValue = "package-list", property = "maven.javadoc.sourcePackageListFileName")
     private String sourcePackageListFileName;
 
     /**
@@ -1945,8 +1944,8 @@ public abstract class AbstractJavadocMojo extends AbstractMojo {
             try {
                 PackageListUtil.writePackageList(allPackages, javadocOutputDirectory);
             } catch (IOException e) {
-                throw new MavenReportException("Cannot write collected package-list file in "
-                    + javadocOutputDirectory.getAbsolutePath(), e);
+                throw new MavenReportException(
+                        "Cannot write collected package-list file in " + javadocOutputDirectory.getAbsolutePath(), e);
             }
         }
 
@@ -3285,8 +3284,12 @@ public abstract class AbstractJavadocMojo extends AbstractMojo {
 
             DependencyFilter filter = new ScopeDependencyFilter(
                     Arrays.asList(Artifact.SCOPE_COMPILE, Artifact.SCOPE_PROVIDED), Collections.emptySet());
-            DependencyRequest req =
-                    new DependencyRequest(new DefaultDependencyNode(RepositoryUtils.toArtifact(artifact)), filter);
+            // CM: fix for https://issues.apache.org/jira/browse/MJAVADOC-742
+            DependencyRequest req = new DependencyRequest(
+                    new CollectRequest(
+                            new org.eclipse.aether.graph.Dependency(RepositoryUtils.toArtifact(artifact), null),
+                            RepositoryUtils.toRepos(project.getRemoteArtifactRepositories())),
+                    filter);
             Iterable<ArtifactResult> deps =
                     repoSystem.resolveDependencies(repoSession, req).getArtifactResults();
             for (ArtifactResult a : deps) {

@@ -1,5 +1,3 @@
-package org.apache.maven.plugins.javadoc;
-
 /*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
@@ -18,6 +16,7 @@ package org.apache.maven.plugins.javadoc;
  * specific language governing permissions and limitations
  * under the License.
  */
+package org.apache.maven.plugins.javadoc;
 
 import java.io.BufferedReader;
 import java.io.File;
@@ -31,85 +30,67 @@ import java.util.Collection;
 import java.util.List;
 import java.util.stream.Collectors;
 
-class PackageListUtil
-{
+class PackageListUtil {
     static final String PACKAGE_LIST = "package-list";
 
-    private PackageListUtil()
-    {
+    private PackageListUtil() {}
+
+    static List<String> readPackageList(File packageListDir) throws IOException {
+        return readPackageList(packageListDir, PACKAGE_LIST);
     }
 
-    static List<String> readPackageList( File packageListDir ) throws IOException
-    {
-        return readPackageList( packageListDir, PACKAGE_LIST );
-    }
-
-    static List<String> readPackageList( File packageListDir, String packageListFileName ) throws IOException
-    {
+    static List<String> readPackageList(File packageListDir, String packageListFileName) throws IOException {
         List<String> packageList;
-        File packageListFile = new File( packageListDir, packageListFileName );
-        try ( BufferedReader br = new BufferedReader( new FileReader( packageListFile ) ) )
-        {
-            packageList = br.lines().filter( PackageListUtil::isPackage ).collect( Collectors.toList() );
+        File packageListFile = new File(packageListDir, packageListFileName);
+        try (BufferedReader br = new BufferedReader(new FileReader(packageListFile))) {
+            packageList = br.lines().filter(PackageListUtil::isPackage).collect(Collectors.toList());
         }
         return packageList;
     }
 
-    static void writePackageList( List<String> packageList, File packageListDir ) throws IOException
-    {
+    static void writePackageList(List<String> packageList, File packageListDir) throws IOException {
         //noinspection ResultOfMethodCallIgnored
         packageListDir.mkdirs();
-        File packageListFile = new File( packageListDir, PACKAGE_LIST );
+        File packageListFile = new File(packageListDir, PACKAGE_LIST);
         //noinspection ResultOfMethodCallIgnored
         packageListFile.createNewFile();
-        try ( PrintWriter br = new PrintWriter( new FileWriter( packageListFile ) ) )
-        {
-            for ( String packageName : packageList )
-            {
-                br.println( packageName );
+        try (PrintWriter br = new PrintWriter(new FileWriter(packageListFile))) {
+            for (String packageName : packageList) {
+                br.println(packageName);
             }
         }
     }
 
-    private static boolean isPackage( String line )
-    {
-        return !line.trim().isEmpty() && !line.startsWith( "#" );
+    private static boolean isPackage(String line) {
+        return !line.trim().isEmpty() && !line.startsWith("#");
     }
 
-    static List<String> convertPackageListToSourceFileIncludes( Collection<String> packageNames )
-    {
+    static List<String> convertPackageListToSourceFileIncludes(Collection<String> packageNames) {
         return packageNames.stream()
-            .map( PackageListUtil::convertPackageToSourceFileInclude )
-            .collect( Collectors.toList() );
+                .map(PackageListUtil::convertPackageToSourceFileInclude)
+                .collect(Collectors.toList());
     }
 
-    private static String convertPackageToSourceFileInclude( String line )
-    {
-        return line.trim().replace( '.', '/' ) + "/*.java";
+    private static String convertPackageToSourceFileInclude(String line) {
+        return line.trim().replace('.', '/') + "/*.java";
     }
 
-    static List<String> collectPackageLists( Collection<Path> sourcePaths )
-    {
-        return collectPackageLists( sourcePaths, PACKAGE_LIST );
+    static List<String> collectPackageLists(Collection<Path> sourcePaths) {
+        return collectPackageLists(sourcePaths, PACKAGE_LIST);
     }
 
-    static List<String> collectPackageLists( Collection<Path> sourcePaths, String packageListFileName )
-    {
+    static List<String> collectPackageLists(Collection<Path> sourcePaths, String packageListFileName) {
         List<String> allPackages;
         allPackages = sourcePaths.stream()
-            .filter( sourcePath -> Files.exists( sourcePath.resolve( packageListFileName ) ) )
-            .flatMap( sourcePath ->
-            {
-                try
-                {
-                    return readPackageList( sourcePath.toFile(), packageListFileName ).stream();
-                }
-                catch ( IOException e )
-                {
-                    throw new IllegalStateException( "Cannot read package-list file " + sourcePath, e );
-                }
-            } )
-            .collect( Collectors.toList() );
+                .filter(sourcePath -> Files.exists(sourcePath.resolve(packageListFileName)))
+                .flatMap(sourcePath -> {
+                    try {
+                        return readPackageList(sourcePath.toFile(), packageListFileName).stream();
+                    } catch (IOException e) {
+                        throw new IllegalStateException("Cannot read package-list file " + sourcePath, e);
+                    }
+                })
+                .collect(Collectors.toList());
         return allPackages;
     }
 }
