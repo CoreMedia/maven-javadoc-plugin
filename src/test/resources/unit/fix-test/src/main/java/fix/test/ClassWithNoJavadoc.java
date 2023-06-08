@@ -21,6 +21,7 @@ package fix.test;
 
 import java.util.Map;
 
+@SuppressWarnings("SameReturnValue")
 public class ClassWithNoJavadoc
     implements InterfaceWithNoJavadoc
 {
@@ -46,6 +47,16 @@ public class ClassWithNoJavadoc
     }
 
     public ClassWithNoJavadoc( String aString )
+    {
+    }
+
+    @SuppressWarnings("SameReturnValue")
+    public ClassWithNoJavadoc( Boolean b )
+    {
+    }
+
+    @SuppressWarnings("SameReturnValue")
+    private ClassWithNoJavadoc( Integer i )
     {
     }
 
@@ -106,4 +117,68 @@ public class ClassWithNoJavadoc
         {
         }
     }
+
+    @SuppressWarnings("SameReturnValue")
+    private void t000()
+    {
+        return;
+    }
+
+    //test comment
+    private void t001()
+    {
+        return;
+    }
+
+    @SuppressWarnings("SameReturnValue")
+    public void t010()
+    {
+        return;
+    }
+
+    //test comment
+    public void t011()
+    {
+        return;
+    }
+
+    public <T extends Object> void testGeneric3(Class<T> tClass, Object o)
+    {
+        return;
+    }
+
+    public void testException0()
+            throws Exception
+    {
+        throw new Exception();
+    }
+
+    public void testException1()
+            throws Exception
+    {
+        throw new Exception();
+    }
+
+    public void testException2()
+            throws Exception
+    {
+        throw new Exception();
+    }
+
+    public void testException3()
+            throws RuntimeException , Exception
+    {
+        throw new Exception();
+    }
+
+    public static final int TEST_STATIC_FINAL_FIELD_0 = 1 << 2;
+
+    public static final int TEST_STATIC_FINAL_FIELD_1 = 2 >> 1;
+
+    public static final String TEST_STATIC_FINAL_FIELD_2 = "<>?";
+}
+
+@SuppressWarnings("SameReturnValue")
+class PrivateTestClassWithNoJavadoc
+{
 }

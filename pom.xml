@@ -1,5 +1,4 @@
-<?xml version='1.0' encoding='UTF-8'?>
-
+<?xml version="1.0" encoding="UTF-8"?>
 <!--
 Licensed to the Apache Software Foundation (ASF) under one
 or more contributor license agreements.  See the NOTICE file
@@ -18,65 +17,25 @@ KIND, either express or implied.  See the License for the
 specific language governing permissions and limitations
 under the License.
 -->
-
 <project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
   <modelVersion>4.0.0</modelVersion>
 
   <parent>
     <groupId>org.apache.maven.plugins</groupId>
     <artifactId>maven-plugins</artifactId>
-    <version>33</version>
+    <version>39</version>
     <relativePath />
   </parent>
 
   <groupId>com.coremedia.internal.org.apache.maven.plugins</groupId>
   <artifactId>maven-javadoc-plugin</artifactId>
-  <version>3.2.0-2-SNAPSHOT</version>
+  <version>3.5.0-1-SNAPSHOT</version>
   <packaging>maven-plugin</packaging>
 
   <name>Apache Maven Javadoc Plugin</name>
-  <description>
-    The Apache Maven Javadoc Plugin is a plugin that uses the javadoc tool for
-    generating javadocs for the specified project.
-  </description>
+  <description>The Apache Maven Javadoc Plugin is a plugin that uses the javadoc tool for
+    generating javadocs for the specified project.</description>
   <inceptionYear>2004</inceptionYear>
-
-  <prerequisites>
-    <maven>${mavenVersion}</maven>
-  </prerequisites>
-
-  <scm>
-    <connection>scm:git:https://gitbox.apache.org/repos/asf/maven-javadoc-plugin.git</connection>
-    <developerConnection>scm:git:https://gitbox.apache.org/repos/asf/maven-javadoc-plugin.git</developerConnection>
-    <url>https://github.com/apache/maven-javadoc-plugin/tree/${project.scm.tag}</url>
-    <tag>HEAD</tag>
-  </scm>
-  <issueManagement>
-    <system>jira</system>
-    <url>https://issues.apache.org/jira/browse/MJAVADOC</url>
-  </issueManagement>
-  <ciManagement>
-    <system>Jenkins</system>
-    <url>https://builds.apache.org/job/maven-box/job/maven-javadoc-plugin/</url>
-  </ciManagement>
-  <distributionManagement>
-    <site>
-      <id>apache.website</id>
-      <url>scm:svn:https://svn.apache.org/repos/asf/maven/website/components/${maven.site.path}</url>
-    </site>
-  </distributionManagement>
-
-  <properties>
-    <javaVersion>7</javaVersion>
-    <mavenVersion>3.0</mavenVersion>
-    <doxiaVersion>1.7</doxiaVersion>
-    <doxia-sitetoolsVersion>1.7.4</doxia-sitetoolsVersion>
-    <wagonVersion>2.4</wagonVersion>
-    <sonatypeAetherVersion>1.13.1</sonatypeAetherVersion>
-    <!-- for ITs -->
-    <sitePluginVersion>3.3</sitePluginVersion>
-    <projectInfoReportsPluginVersion>2.7</projectInfoReportsPluginVersion>
-  </properties>
 
   <contributors>
     <contributor>
@@ -126,68 +85,116 @@ under the License.
     </contributor>
   </contributors>
 
+  <prerequisites>
+    <maven>${mavenVersion}</maven>
+  </prerequisites>
+
+  <scm>
+    <connection>scm:git:https://gitbox.apache.org/repos/asf/maven-javadoc-plugin.git</connection>
+    <developerConnection>scm:git:https://gitbox.apache.org/repos/asf/maven-javadoc-plugin.git</developerConnection>
+    <tag>HEAD</tag>
+    <url>https://github.com/apache/maven-javadoc-plugin/tree/${project.scm.tag}</url>
+  </scm>
+  <issueManagement>
+    <system>jira</system>
+    <url>https://issues.apache.org/jira/browse/MJAVADOC</url>
+  </issueManagement>
+  <ciManagement>
+    <system>Jenkins</system>
+    <url>https://ci-builds.apache.org/job/Maven/job/maven-box/job/maven-javadoc-plugin/</url>
+  </ciManagement>
+  <distributionManagement>
+    <site>
+      <id>apache.website</id>
+      <url>scm:svn:https://svn.apache.org/repos/asf/maven/website/components/${maven.site.path}</url>
+    </site>
+  </distributionManagement>
+
+  <properties>
+    <javaVersion>8</javaVersion>
+    <mavenVersion>3.2.5</mavenVersion>
+    <doxiaVersion>1.11.1</doxiaVersion>
+    <doxia-sitetoolsVersion>1.11.1</doxia-sitetoolsVersion>
+    <wagonVersion>2.4</wagonVersion>
+    <aetherVersion>1.0.0.v20140518</aetherVersion>
+    <!-- https://cwiki.apache.org/confluence/x/VIHOCg#MavenEcosystemCleanup-ResolverandMaven -->
+    <plexus-java.version>1.1.2</plexus-java.version>
+    <jetty.version>9.4.50.v20221201</jetty.version>
+    <!-- for ITs -->
+    <sitePluginVersion>3.12.1</sitePluginVersion>
+    <projectInfoReportsPluginVersion>3.4.2</projectInfoReportsPluginVersion>
+    <project.build.outputTimestamp>2023-02-12T17:50:15Z</project.build.outputTimestamp>
+    <slf4jVersion>1.7.36</slf4jVersion>
+  </properties>
+
   <dependencyManagement>
     <dependencies>
       <dependency>
-        <groupId>org.sonatype.aether</groupId>
+        <groupId>org.eclipse.aether</groupId>
         <artifactId>aether-api</artifactId>
-        <version>${sonatypeAetherVersion}</version>
+        <version>${aetherVersion}</version>
       </dependency>
       <dependency>
-        <groupId>org.sonatype.aether</groupId>
-        <artifactId>aether-connector</artifactId>
-        <version>${sonatypeAetherVersion}</version>
+        <groupId>org.eclipse.aether</groupId>
+        <artifactId>aether-connector-basic</artifactId>
+        <version>${aetherVersion}</version>
       </dependency>
       <dependency>
-        <groupId>org.sonatype.aether</groupId>
-        <artifactId>aether-connector-wagon</artifactId>
-        <version>${sonatypeAetherVersion}</version>
+        <groupId>org.eclipse.aether</groupId>
+        <artifactId>aether-transport-wagon</artifactId>
+        <version>${aetherVersion}</version>
       </dependency>
       <dependency>
-        <groupId>org.sonatype.aether</groupId>
+        <groupId>org.eclipse.aether</groupId>
         <artifactId>aether-impl</artifactId>
-        <version>${sonatypeAetherVersion}</version>
+        <version>${aetherVersion}</version>
       </dependency>
       <dependency>
-        <groupId>org.sonatype.aether</groupId>
+        <groupId>org.eclipse.aether</groupId>
         <artifactId>aether-util</artifactId>
-        <version>${sonatypeAetherVersion}</version>
+        <version>${aetherVersion}</version>
       </dependency>
     </dependencies>
   </dependencyManagement>
-  
+
   <dependencies>
-    <dependency> <!-- @TODO remove!! -->
+    <dependency>
+      <!-- @TODO remove!! -->
       <groupId>org.apache.maven</groupId>
       <artifactId>maven-compat</artifactId>
       <version>${mavenVersion}</version>
       <scope>test</scope>
     </dependency>
-    <!-- maven -->
+    <!-- Maven -->
     <dependency>
       <groupId>org.apache.maven</groupId>
       <artifactId>maven-core</artifactId>
       <version>${mavenVersion}</version>
+      <scope>provided</scope>
     </dependency>
     <dependency>
       <groupId>org.apache.maven</groupId>
       <artifactId>maven-model</artifactId>
       <version>${mavenVersion}</version>
+      <scope>provided</scope>
     </dependency>
     <dependency>
       <groupId>org.apache.maven</groupId>
       <artifactId>maven-settings</artifactId>
       <version>${mavenVersion}</version>
+      <scope>provided</scope>
     </dependency>
     <dependency>
       <groupId>org.apache.maven</groupId>
       <artifactId>maven-plugin-api</artifactId>
       <version>${mavenVersion}</version>
+      <scope>provided</scope>
     </dependency>
     <dependency>
       <groupId>org.apache.maven</groupId>
       <artifactId>maven-artifact</artifactId>
       <version>${mavenVersion}</version>
+      <scope>provided</scope>
     </dependency>
     <dependency>
       <groupId>org.apache.maven.plugin-tools</groupId>
@@ -195,36 +202,30 @@ under the License.
       <scope>provided</scope>
     </dependency>
     <dependency>
-      <groupId>org.codehaus.plexus</groupId>
-      <artifactId>plexus-component-annotations</artifactId>
-      <scope>provided</scope>
+      <groupId>javax.inject</groupId>
+      <artifactId>javax.inject</artifactId>
+      <version>1</version>
     </dependency>
-
     <!-- shared -->
     <dependency>
       <groupId>org.apache.maven.reporting</groupId>
       <artifactId>maven-reporting-api</artifactId>
-      <version>3.0</version>
+      <version>3.1.1</version>
     </dependency>
     <dependency>
       <groupId>org.apache.maven</groupId>
       <artifactId>maven-archiver</artifactId>
-      <version>3.5.0</version>
+      <version>3.6.0</version>
     </dependency>
     <dependency>
       <groupId>org.apache.maven.shared</groupId>
       <artifactId>maven-invoker</artifactId>
-      <version>3.0.0</version>
+      <version>3.2.0</version>
     </dependency>
     <dependency>
       <groupId>org.apache.maven.shared</groupId>
       <artifactId>maven-common-artifact-filters</artifactId>
-      <version>3.0.0</version>
-    </dependency>
-    <dependency>
-      <groupId>org.apache.maven.shared</groupId>
-      <artifactId>maven-artifact-transfer</artifactId>
-      <version>0.10.1</version>
+      <version>3.2.0</version>
     </dependency>
 
     <!-- Doxia -->
@@ -252,58 +253,58 @@ under the License.
     <dependency>
       <groupId>org.apache.commons</groupId>
       <artifactId>commons-lang3</artifactId>
-      <version>3.5</version>
+      <version>3.12.0</version>
     </dependency>
     <dependency>
-      <groupId>commons-io</groupId>
-      <artifactId>commons-io</artifactId>
-      <version>2.5</version>
+      <groupId>org.apache.commons</groupId>
+      <artifactId>commons-text</artifactId>
+      <version>1.10.0</version>
     </dependency>
     <dependency>
       <groupId>org.apache.httpcomponents</groupId>
       <artifactId>httpclient</artifactId>
-      <version>4.5.8</version>
+      <version>4.5.14</version>
+    </dependency>
+    <dependency>
+      <groupId>org.apache.httpcomponents</groupId>
+      <artifactId>httpcore</artifactId>
+      <version>4.4.16</version>
     </dependency>
 
     <dependency>
       <groupId>com.thoughtworks.qdox</groupId>
       <artifactId>qdox</artifactId>
-      <version>2.0-M10</version>
+      <version>2.0.3</version>
     </dependency>
 
     <!-- Plexus -->
     <dependency>
       <groupId>org.codehaus.plexus</groupId>
       <artifactId>plexus-java</artifactId>
-      <version>1.0.3</version>
-    </dependency>
-    <dependency>
-      <groupId>org.codehaus.plexus</groupId>
-      <artifactId>plexus-archiver</artifactId>
-      <version>4.2.1</version>
-    </dependency>
-    <dependency>
-      <groupId>org.codehaus.plexus</groupId>
-      <artifactId>plexus-io</artifactId>
-      <version>3.2.0</version>
+      <version>${plexus-java.version}</version>
     </dependency>
     <dependency>
       <groupId>org.codehaus.plexus</groupId>
       <artifactId>plexus-utils</artifactId>
-      <version>3.3.0</version>
+      <version>3.5.0</version>
+    </dependency>
+    <dependency>
+      <groupId>commons-io</groupId>
+      <artifactId>commons-io</artifactId>
+      <version>2.11.0</version>
     </dependency>
     <dependency>
       <groupId>org.codehaus.plexus</groupId>
       <artifactId>plexus-interactivity-api</artifactId>
-      <version>1.0-alpha-6</version>
+      <version>1.1</version>
       <exclusions>
         <exclusion>
-          <groupId>plexus</groupId>
+          <groupId>org.codehaus.plexus</groupId>
           <artifactId>plexus-utils</artifactId>
         </exclusion>
         <exclusion>
           <groupId>org.codehaus.plexus</groupId>
-          <artifactId>plexus-component-api</artifactId>
+          <artifactId>plexus-container-default</artifactId>
         </exclusion>
       </exclusions>
     </dependency>
@@ -312,42 +313,53 @@ under the License.
     <dependency>
       <groupId>junit</groupId>
       <artifactId>junit</artifactId>
-      <version>4.12</version>
-      <scope>test</scope>
-    </dependency>
-    <dependency>
-      <groupId>junit-addons</groupId>
-      <artifactId>junit-addons</artifactId>
-      <version>1.4</version>
+      <version>4.13.2</version>
       <scope>test</scope>
     </dependency>
     <dependency>
       <groupId>org.apache.maven.plugin-testing</groupId>
       <artifactId>maven-plugin-testing-harness</artifactId>
-      <version>2.1</version>
+      <version>3.3.0</version>
       <scope>test</scope>
     </dependency>
     <dependency>
-      <groupId>org.mortbay.jetty</groupId>
-      <artifactId>jetty</artifactId>
-      <version>6.1.25</version>
+      <groupId>org.eclipse.jetty</groupId>
+      <artifactId>jetty-server</artifactId>
+      <version>${jetty.version}</version>
       <scope>test</scope>
     </dependency>
     <dependency>
-      <groupId>org.mortbay.jetty</groupId>
+      <groupId>org.eclipse.jetty</groupId>
+      <artifactId>jetty-proxy</artifactId>
+      <version>${jetty.version}</version>
+      <scope>test</scope>
+    </dependency>
+    <dependency>
+      <groupId>org.eclipse.jetty</groupId>
+      <artifactId>jetty-servlet</artifactId>
+      <version>${jetty.version}</version>
+      <scope>test</scope>
+    </dependency>
+    <dependency>
+      <groupId>org.eclipse.jetty</groupId>
       <artifactId>jetty-client</artifactId>
-      <version>6.1.25</version>
+      <version>${jetty.version}</version>
       <scope>test</scope>
     </dependency>
     <dependency>
       <groupId>org.mockito</groupId>
       <artifactId>mockito-core</artifactId>
-      <version>2.23.4</version>
+      <version>4.11.0</version>
       <scope>test</scope>
     </dependency>
     <dependency>
-      <groupId>org.sonatype.aether</groupId>
-      <artifactId>aether-connector-wagon</artifactId>
+      <groupId>org.eclipse.aether</groupId>
+      <artifactId>aether-connector-basic</artifactId>
+      <scope>test</scope>
+    </dependency>
+    <dependency>
+      <groupId>org.eclipse.aether</groupId>
+      <artifactId>aether-transport-wagon</artifactId>
       <scope>test</scope>
     </dependency>
     <dependency>
@@ -355,6 +367,18 @@ under the License.
       <artifactId>wagon-http</artifactId>
       <version>${wagonVersion}</version>
       <classifier>shaded</classifier>
+      <scope>test</scope>
+    </dependency>
+    <dependency>
+      <groupId>org.assertj</groupId>
+      <artifactId>assertj-core</artifactId>
+      <version>3.24.2</version>
+      <scope>test</scope>
+    </dependency>
+    <dependency>
+      <groupId>org.slf4j</groupId>
+      <artifactId>slf4j-simple</artifactId>
+      <version>${slf4jVersion}</version>
       <scope>test</scope>
     </dependency>
   </dependencies>
@@ -384,13 +408,17 @@ under the License.
               <exclude>src/test/resources/unit/test-javadoc-test/junit/junit/3.8.1/junit-3.8.1.pom</exclude>
               <!-- temporary file that sometimes stays after a failure then completely blocks build -->
               <exclude>javadoc-options-javadoc-resources.xml</exclude>
+              <exclude>.github/dependabot.yml</exclude>
             </excludes>
           </configuration>
         </plugin>
         <plugin>
           <groupId>org.apache.maven.plugins</groupId>
-          <artifactId>maven-jxr-plugin</artifactId>
-          <version>3.0.0</version>
+          <artifactId>maven-javadoc-plugin</artifactId>
+          <version>${project.version}</version>
+          <configuration>
+            <failOnWarnings>false</failOnWarnings>
+          </configuration>
         </plugin>
       </plugins>
     </pluginManagement>
@@ -398,6 +426,12 @@ under the License.
       <plugin>
         <groupId>org.codehaus.modello</groupId>
         <artifactId>modello-maven-plugin</artifactId>
+        <configuration>
+          <version>1.1.1</version>
+          <models>
+            <model>src/main/mdo/javadocOptions.mdo</model>
+          </models>
+        </configuration>
         <executions>
           <execution>
             <goals>
@@ -407,24 +441,10 @@ under the License.
             </goals>
           </execution>
         </executions>
-        <configuration>
-          <version>1.1.0</version>
-          <models>
-            <model>src/main/mdo/javadocOptions.mdo</model>
-          </models>
-        </configuration>
       </plugin>
       <plugin>
-        <groupId>org.codehaus.plexus</groupId>
-        <artifactId>plexus-component-metadata</artifactId>
-        <executions>
-          <execution>
-            <goals>
-              <goal>generate-metadata</goal>
-              <goal>generate-test-metadata</goal>
-            </goals>
-          </execution>
-        </executions>
+        <groupId>org.eclipse.sisu</groupId>
+        <artifactId>sisu-maven-plugin</artifactId>
       </plugin>
       <plugin>
         <groupId>org.apache.maven.plugins</groupId>
@@ -436,6 +456,10 @@ under the License.
             <maven.home>${maven.home}</maven.home>
             <https.protocols>${https.protocols}</https.protocols>
           </systemPropertyVariables>
+          <environmentVariables>
+            <JENKINS_MAVEN_AGENT_DISABLED>true</JENKINS_MAVEN_AGENT_DISABLED>
+          </environmentVariables>
+          <trimStackTrace>false</trimStackTrace>
         </configuration>
       </plugin>
       <plugin>
@@ -456,18 +480,6 @@ under the License.
         <configuration>
           <skip>true</skip>
         </configuration>
-      </plugin>
-      <plugin>
-        <groupId>org.apache.maven.plugins</groupId>
-        <artifactId>maven-plugin-plugin</artifactId>
-        <dependencies>
-          <!-- see MPLUGIN-346 -->
-          <dependency>
-            <groupId>org.codehaus.plexus</groupId>
-            <artifactId>plexus-utils</artifactId>
-            <version>3.1.1</version>
-          </dependency>
-        </dependencies>
       </plugin>
       <plugin>
         <groupId>org.apache.maven.plugins</groupId>
@@ -492,17 +504,18 @@ under the License.
               <localRepositoryPath>${project.build.directory}/local-repo</localRepositoryPath>
               <projectsDirectory>src/it/projects</projectsDirectory>
               <settingsFile>src/it/mrm/settings.xml</settingsFile>
+              <pomIncludes combine.children="append">
+                <pomInclude>examples/*/pom.xml</pomInclude>
+              </pomIncludes>
               <pomExcludes>
-                <pomExclude>MJAVADOC-181/pom.xml</pomExclude> <!-- seems to be wrong, see comment in Jira issue  -->
+                <pomExclude>MJAVADOC-181/pom.xml</pomExclude>
+                <!-- seems to be wrong, see comment in Jira issue  -->
                 <pomExclude>output-encoding/pom.xml</pomExclude>
               </pomExcludes>
-              <properties>
+              <properties combine.self="override" />
+              <filterProperties>
                 <maven.compiler.source>${maven.compiler.source}</maven.compiler.source>
                 <maven.compiler.target>${maven.compiler.target}</maven.compiler.target>
-                <!-- e.g. ensure that Java7 picks up TLSv1.2 when connecting with Central -->
-                <https.protocols>${https.protocols}</https.protocols>
-              </properties>
-              <filterProperties>
                 <mrm.3rdparty.url>${mrm.3rdparty.url}</mrm.3rdparty.url>
               </filterProperties>
               <environmentVariables>
@@ -515,7 +528,7 @@ under the License.
           <plugin>
             <groupId>org.codehaus.mojo</groupId>
             <artifactId>mrm-maven-plugin</artifactId>
-            <version>1.1.0</version>
+            <version>1.5.0</version>
             <executions>
               <execution>
                 <id>repository</id>
@@ -559,7 +572,7 @@ under the License.
           <plugin>
             <groupId>org.codehaus.mojo</groupId>
             <artifactId>l10n-maven-plugin</artifactId>
-            <version>1.0-alpha-2</version>
+            <version>1.0.0</version>
             <configuration>
               <excludes>
                 <exclude>**/log4j.properties</exclude>
@@ -571,25 +584,6 @@ under the License.
                 <locale>sv</locale>
               </locales>
             </configuration>
-          </plugin>
-          <plugin>
-            <groupId>org.apache.maven.plugins</groupId>
-            <artifactId>maven-changes-plugin</artifactId>
-            <configuration>
-              <!-- For JIRA-report -->
-              <columnNames>Type,Key,Summary,Assignee,Status,Resolution,Fix Version</columnNames>
-              <onlyCurrentVersion>true</onlyCurrentVersion>
-              <resolutionIds>Fixed</resolutionIds>
-              <sortColumnNames>Type,Key</sortColumnNames>
-              <maxEntries>1000</maxEntries> <!-- MCHANGES-124 -->
-            </configuration>
-            <reportSets>
-              <reportSet>
-                <reports>
-                  <report>jira-report</report>
-                </reports>
-              </reportSet>
-            </reportSets>
           </plugin>
         </plugins>
       </reporting>

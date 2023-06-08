@@ -1,5 +1,3 @@
-package org.apache.maven.plugins.javadoc;
-
 /*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
@@ -9,7 +7,7 @@ package org.apache.maven.plugins.javadoc;
  * "License"); you may not use this file except in compliance
  * with the License.  You may obtain a copy of the License at
  *
- *  http://www.apache.org/licenses/LICENSE-2.0
+ *   http://www.apache.org/licenses/LICENSE-2.0
  *
  * Unless required by applicable law or agreed to in writing,
  * software distributed under the License is distributed on an
@@ -18,11 +16,7 @@ package org.apache.maven.plugins.javadoc;
  * specific language governing permissions and limitations
  * under the License.
  */
-
-import java.io.IOException;
-import java.net.InetAddress;
-import java.net.UnknownHostException;
-import java.util.Map;
+package org.apache.maven.plugins.javadoc;
 
 import javax.servlet.ServletException;
 import javax.servlet.ServletRequest;
@@ -30,13 +24,18 @@ import javax.servlet.ServletResponse;
 import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
 
-import org.mortbay.jetty.Connector;
-import org.mortbay.jetty.Server;
-import org.mortbay.jetty.bio.SocketConnector;
-import org.mortbay.jetty.security.B64Code;
-import org.mortbay.jetty.servlet.Context;
-import org.mortbay.jetty.servlet.ServletHolder;
-import org.mortbay.proxy.AsyncProxyServlet;
+import java.io.IOException;
+import java.net.InetAddress;
+import java.nio.charset.StandardCharsets;
+import java.util.Base64;
+import java.util.Map;
+
+import org.eclipse.jetty.proxy.AsyncProxyServlet;
+import org.eclipse.jetty.proxy.ConnectHandler;
+import org.eclipse.jetty.server.Server;
+import org.eclipse.jetty.server.ServerConnector;
+import org.eclipse.jetty.servlet.ServletContextHandler;
+import org.eclipse.jetty.servlet.ServletHolder;
 
 /**
  * A Proxy server.
@@ -44,61 +43,64 @@ import org.mortbay.proxy.AsyncProxyServlet;
  * @author <a href="mailto:vincent.siveton@gmail.com">Vincent Siveton</a>
  * @since 2.6
  */
-class ProxyServer
-{
+class ProxyServer {
     private Server proxyServer;
+
+    private ServerConnector serverConnector;
 
     /**
      * @param proxyServlet the wanted auth proxy servlet
      */
-    public ProxyServer( AuthAsyncProxyServlet proxyServlet )
-    {
-        this( null, 0, proxyServlet );
+    public ProxyServer(AuthAsyncProxyServlet proxyServlet) {
+        this(null, 0, proxyServlet);
     }
 
     /**
      * @param hostName the server name
      * @param port the server port
-     * @param debug true to display System.err, false otherwise.
      * @param proxyServlet the wanted auth proxy servlet
      */
-    public ProxyServer( String hostName, int port, AuthAsyncProxyServlet proxyServlet )
-    {
+    public ProxyServer(String hostName, int port, AuthAsyncProxyServlet proxyServlet) {
         proxyServer = new Server();
 
-        proxyServer.addConnector( getDefaultConnector( hostName, port ) );
+        serverConnector = new ServerConnector(proxyServer);
+        serverConnector.setHost(InetAddress.getLoopbackAddress().getHostName());
+        serverConnector.setReuseAddress(true);
+        serverConnector.setPort(0);
 
-        Context context = new Context( proxyServer, "/", 0 );
+        proxyServer.addConnector(serverConnector);
 
-        context.addServlet( new ServletHolder( proxyServlet ), "/" );
+        // Setup proxy handler to handle CONNECT methods
+        ConnectHandler proxy = new ConnectHandler();
+        proxyServer.setHandler(proxy);
+
+        // Setup proxy servlet
+        ServletContextHandler context = new ServletContextHandler(proxy, "/", true, false);
+        ServletHolder appServletHolder = new ServletHolder(proxyServlet);
+        context.addServlet(appServletHolder, "/*");
     }
 
     /**
      * @return the host name
      */
-    public String getHostName()
-    {
-        Connector connector = proxyServer.getConnectors()[0];
-        return connector.getHost();
+    public String getHostName() {
+        return serverConnector.getHost() == null
+                ? InetAddress.getLoopbackAddress().getHostName()
+                : serverConnector.getHost();
     }
 
     /**
      * @return the host port
      */
-    public int getPort()
-    {
-        Connector connector = proxyServer.getConnectors()[0];
-        return ( connector.getLocalPort() <= 0 ? connector.getPort() : connector.getLocalPort() );
+    public int getPort() {
+        return serverConnector.getLocalPort();
     }
 
     /**
      * @throws Exception if any
      */
-    public void start()
-        throws Exception
-    {
-        if ( proxyServer != null )
-        {
+    public void start() throws Exception {
+        if (proxyServer != null) {
             proxyServer.start();
         }
     }
@@ -106,48 +108,17 @@ class ProxyServer
     /**
      * @throws Exception if any
      */
-    public void stop()
-        throws Exception
-    {
-        if ( proxyServer != null )
-        {
+    public void stop() throws Exception {
+        if (proxyServer != null) {
             proxyServer.stop();
         }
         proxyServer = null;
     }
 
-    private Connector getDefaultConnector( String hostName, int port )
-    {
-        Connector connector = new SocketConnector();
-        if ( hostName != null )
-        {
-            connector.setHost( hostName );
-        }
-        else
-        {
-            try
-            {
-                connector.setHost( InetAddress.getLocalHost().getCanonicalHostName() );
-            }
-            catch ( UnknownHostException e )
-            {
-                // nop
-            }
-        }
-        if ( port > 0 )
-        {
-            connector.setPort( port );
-        }
-
-        return connector;
-    }
-
     /**
      * A proxy servlet with authentication support.
      */
-    static class AuthAsyncProxyServlet
-        extends AsyncProxyServlet
-    {
+    static class AuthAsyncProxyServlet extends AsyncProxyServlet {
         private Map<String, String> authentications;
 
         private long sleepTime = 0;
@@ -155,8 +126,7 @@ class ProxyServer
         /**
          * Constructor for non authentication servlet.
          */
-        public AuthAsyncProxyServlet()
-        {
+        public AuthAsyncProxyServlet() {
             super();
         }
 
@@ -165,8 +135,7 @@ class ProxyServer
          *
          * @param authentications a map of user/password
          */
-        public AuthAsyncProxyServlet( Map<String, String> authentications )
-        {
+        public AuthAsyncProxyServlet(Map<String, String> authentications) {
             this();
 
             this.authentications = authentications;
@@ -178,65 +147,54 @@ class ProxyServer
          * @param authentications a map of user/password
          * @param sleepTime a positive time to sleep the service thread (for timeout)
          */
-        public AuthAsyncProxyServlet( Map<String, String> authentications, long sleepTime )
-        {
+        public AuthAsyncProxyServlet(Map<String, String> authentications, long sleepTime) {
             this();
-
             this.authentications = authentications;
             this.sleepTime = sleepTime;
         }
 
         /** {@inheritDoc} */
         @Override
-        public void service( ServletRequest req, ServletResponse res )
-            throws ServletException, IOException
-        {
+        public void service(ServletRequest req, ServletResponse res) throws ServletException, IOException {
             final HttpServletRequest request = (HttpServletRequest) req;
             final HttpServletResponse response = (HttpServletResponse) res;
 
-            if ( this.authentications != null && !this.authentications.isEmpty() )
-            {
-                String proxyAuthorization = request.getHeader( "Proxy-Authorization" );
-                if ( proxyAuthorization != null && proxyAuthorization.startsWith( "Basic " ) )
-                {
-                    String proxyAuth = proxyAuthorization.substring( 6 );
-                    String authorization = B64Code.decode( proxyAuth );
-                    String[] authTokens = authorization.split( ":" );
+            if (this.authentications != null && !this.authentications.isEmpty()) {
+                String proxyAuthorization = request.getHeader("Proxy-Authorization");
+                if (proxyAuthorization != null && proxyAuthorization.startsWith("Basic ")) {
+                    String proxyAuth = proxyAuthorization.substring("Basic ".length());
+                    String authorization = new String(Base64.getDecoder().decode(proxyAuth), StandardCharsets.UTF_8);
+
+                    String[] authTokens = authorization.split(":");
                     String user = authTokens[0];
                     String password = authTokens[1];
 
-                    if ( this.authentications.get( user ) == null )
-                    {
-                        throw new IllegalArgumentException( user + " not found in the map!" );
+                    if (this.authentications.get(user) == null) {
+                        throw new IllegalArgumentException(user + " not found in the map!");
                     }
 
-                    if ( sleepTime > 0 )
-                    {
-                        try
-                        {
-                            Thread.sleep( sleepTime );
-                        }
-                        catch ( InterruptedException e )
-                        {
+                    if (sleepTime > 0) {
+                        try {
+                            Thread.sleep(sleepTime);
+                        } catch (InterruptedException e) {
                             // nop
                         }
                     }
                     String authPass = this.authentications.get(user);
-                    if ( password.equals( authPass ) )
-                    {
+                    if (password.equals(authPass)) {
                         // could throw exceptions...
-                        super.service( req, res );
+                        super.service(req, res);
                         return;
                     }
                 }
 
                 // Proxy-Authenticate Basic realm="CCProxy Authorization"
-                response.addHeader( "Proxy-Authenticate", "Basic realm=\"Jetty Proxy Authorization\"" );
-                response.setStatus( HttpServletResponse.SC_PROXY_AUTHENTICATION_REQUIRED );
+                response.addHeader("Proxy-Authenticate", "Basic realm=\"Jetty Proxy Authorization\"");
+                response.setStatus(HttpServletResponse.SC_PROXY_AUTHENTICATION_REQUIRED);
                 return;
             }
 
-            super.service( req, res );
+            super.service(req, res);
         }
     }
 }
