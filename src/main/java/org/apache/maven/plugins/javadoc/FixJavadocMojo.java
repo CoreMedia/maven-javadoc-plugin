@@ -1,5 +1,3 @@
-package org.apache.maven.plugins.javadoc;
-
 /*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
@@ -18,6 +16,7 @@ package org.apache.maven.plugins.javadoc;
  * specific language governing permissions and limitations
  * under the License.
  */
+package org.apache.maven.plugins.javadoc;
 
 import org.apache.maven.plugins.annotations.Execute;
 import org.apache.maven.plugins.annotations.LifecyclePhase;
@@ -26,16 +25,13 @@ import org.apache.maven.plugins.annotations.ResolutionScope;
 
 /**
  * Fix Javadoc documentation and tags for the <code>Java code</code> for the project.
- * See <a href="http://docs.oracle.com/javase/7/docs/technotes/tools/windows/javadoc.html#wheretags">Where Tags Can
- * Be Used</a>.
- *
+ * @see <a href="https://docs.oracle.com/en/java/javase/17/docs/specs/javadoc/doc-comment-spec.html#where-tags-can-be-used">Where Tags
+ * Can Be Used</a>
  * @author <a href="mailto:vincent.siveton@gmail.com">Vincent Siveton</a>
  * @since 2.6
  */
-@Mojo( name = "fix", requiresDependencyResolution = ResolutionScope.COMPILE, threadSafe = true )
-@Execute( phase = LifecyclePhase.COMPILE )
-public class FixJavadocMojo
-    extends AbstractFixJavadocMojo
-{
+@Mojo(name = "fix", requiresDependencyResolution = ResolutionScope.COMPILE, threadSafe = true)
+@Execute(phase = LifecyclePhase.COMPILE)
+public class FixJavadocMojo extends AbstractFixJavadocMojo {
     // nop
 }
