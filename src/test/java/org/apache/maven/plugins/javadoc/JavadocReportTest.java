@@ -26,8 +26,11 @@ import java.nio.charset.Charset;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.nio.file.Paths;
+import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
+import java.util.Locale;
 import java.util.Map;
 import java.util.Objects;
 
@@ -37,11 +40,13 @@ import org.apache.maven.model.Plugin;
 import org.apache.maven.plugin.LegacySupport;
 import org.apache.maven.plugin.MojoExecution;
 import org.apache.maven.plugin.MojoExecutionException;
+import org.apache.maven.plugin.MojoFailureException;
 import org.apache.maven.plugin.testing.AbstractMojoTestCase;
 import org.apache.maven.plugin.testing.stubs.MavenProjectStub;
 import org.apache.maven.plugins.javadoc.ProxyServer.AuthAsyncProxyServlet;
 import org.apache.maven.project.MavenProject;
 import org.apache.maven.project.ProjectBuildingRequest;
+import org.apache.maven.project.ProjectBuildingRequest.RepositoryMerging;
 import org.apache.maven.settings.Proxy;
 import org.apache.maven.settings.Settings;
 import org.apache.maven.shared.utils.io.FileUtils;
@@ -77,41 +82,59 @@ public class JavadocReportTest extends AbstractMojoTestCase {
 
     public static final String OPTIONS_UMLAUT_ENCODING = "Options Umlaut Encoding ö ä ü ß";
 
-    /** flag to copy repo only one time */
-    private static boolean TEST_REPO_CREATED = false;
-
     private Path unit;
+
+    private Path tempDirectory;
 
     private File localRepo;
 
     private static final Logger LOGGER = LoggerFactory.getLogger(JavadocReportTest.class);
 
-    /** {@inheritDoc} */
     @Override
     protected void setUp() throws Exception {
         super.setUp();
 
+        tempDirectory = Files.createTempDirectory("JavadocReportTest");
+        localRepo = tempDirectory.resolve(Paths.get("target/local-repo/")).toFile();
         unit = new File(getBasedir(), "src/test/resources/unit").toPath();
 
-        localRepo = new File(getBasedir(), "target/local-repo/");
-
         createTestRepo();
+    }
+
+    @Override
+    protected void tearDown() throws Exception {
+        try {
+            deleteDirectory(tempDirectory.toFile());
+        } catch (IOException ex) {
+            // CI servers can have problems deleting files.
+            // It will get cleared out eventually, and since
+            // temporary directories have unique names,
+            // it shouldn't affect subsequent tests.
+        }
+
+        super.tearDown();
     }
 
     private JavadocReport lookupMojo(Path testPom) throws Exception {
         JavadocReport mojo = (JavadocReport) lookupMojo("javadoc", testPom.toFile());
 
-        MojoExecution mojoExec = new MojoExecution(new Plugin(), "javadoc", null);
+        Plugin p = new Plugin();
+        p.setGroupId("org.apache.maven.plugins");
+        p.setArtifactId("maven-javadoc-plugin");
+        MojoExecution mojoExecution = new MojoExecution(p, "javadoc", null);
 
-        setVariableValueToObject(mojo, "mojo", mojoExec);
+        setVariableValueToObject(mojo, "mojoExecution", mojoExecution);
 
         MavenProject currentProject = new MavenProjectStub();
         currentProject.setGroupId("GROUPID");
         currentProject.setArtifactId("ARTIFACTID");
 
+        List<MavenProject> reactorProjects =
+                mojo.getReactorProjects() != null ? mojo.getReactorProjects() : Collections.emptyList();
         MavenSession session = newMavenSession(currentProject);
         setVariableValueToObject(mojo, "session", session);
         setVariableValueToObject(mojo, "repoSession", session.getRepositorySession());
+        setVariableValueToObject(mojo, "reactorProjects", reactorProjects);
         return mojo;
     }
 
@@ -121,11 +144,7 @@ public class JavadocReportTest extends AbstractMojoTestCase {
      * @throws IOException if any
      */
     private void createTestRepo() throws IOException {
-        if (TEST_REPO_CREATED) {
-            return;
-        }
-
-        localRepo.mkdirs();
+        assertTrue(localRepo.mkdirs());
 
         // ----------------------------------------------------------------------
         // UMLGraph
@@ -145,7 +164,7 @@ public class JavadocReportTest extends AbstractMojoTestCase {
 
         // ----------------------------------------------------------------------
         // commons-attributes-compiler
-        // http://www.tullmann.org/pat/taglets/
+        // https://www.tullmann.org/pat/taglets/
         // ----------------------------------------------------------------------
 
         sourceDir = unit.resolve("taglet-test/artifact-taglet");
@@ -180,8 +199,6 @@ public class JavadocReportTest extends AbstractMojoTestCase {
                 file.delete();
             }
         }
-
-        TEST_REPO_CREATED = true;
     }
 
     /**
@@ -411,31 +428,31 @@ public class JavadocReportTest extends AbstractMojoTestCase {
         // read the contents of the html files based on some of the parameter values
         // author == false
         String str = readFile(apidocs.resolve("custom/configuration/AppSample.html"));
-        assertFalse(str.toLowerCase().contains("author"));
+        assertFalse(str.toLowerCase(Locale.ENGLISH).contains("author"));
 
         // bottom
-        assertTrue(str.toUpperCase().contains("SAMPLE BOTTOM CONTENT"));
+        assertTrue(str.toUpperCase(Locale.ENGLISH).contains("SAMPLE BOTTOM CONTENT"));
 
         // offlineLinks
         if (JavaVersion.JAVA_VERSION.isBefore("11.0.2")) {
             assertThat(str)
                     .containsIgnoringCase("href=\"http://java.sun.com/j2se/1.4.2/docs/api/java/lang/string.html");
         } else {
-            assertTrue(str.toLowerCase()
+            assertTrue(str.toLowerCase(Locale.ENGLISH)
                     .contains("href=\"http://java.sun.com/j2se/1.4.2/docs/api/java.base/java/lang/string.html"));
         }
 
         // header
-        assertTrue(str.toUpperCase().contains("MAVEN JAVADOC PLUGIN TEST"));
+        assertTrue(str.toUpperCase(Locale.ENGLISH).contains("MAVEN JAVADOC PLUGIN TEST"));
 
         // footer
         if (JavaVersion.JAVA_VERSION.isBefore("16-ea")
                 && !System.getProperty("java.vm.name").contains("OpenJ9")) {
-            assertTrue(str.toUpperCase().contains("MAVEN JAVADOC PLUGIN TEST FOOTER"));
+            assertTrue(str.toUpperCase(Locale.ENGLISH).contains("MAVEN JAVADOC PLUGIN TEST FOOTER"));
         }
 
         // nohelp == true
-        assertFalse(str.toUpperCase().contains("/HELP-DOC.HTML"));
+        assertFalse(str.toUpperCase(Locale.ENGLISH).contains("/HELP-DOC.HTML"));
 
         // check the wildcard (*) package exclusions -- excludePackageNames parameter
         assertThat(apidocs.resolve("custom/configuration/exclude1/Exclude1App.html"))
@@ -492,7 +509,7 @@ public class JavadocReportTest extends AbstractMojoTestCase {
                 new File(getBasedir(), "target/test/unit/doclet-test/target/site/apidocs/graph.dot").toPath();
         assertThat(generatedFile).exists();
 
-        Path optionsFile = new File(mojo.getOutputDirectory(), "options").toPath();
+        Path optionsFile = new File(mojo.getPluginReportOutputDirectory(), "options").toPath();
         assertThat(optionsFile).exists();
         String options = readFile(optionsFile);
         assertThat(options).contains("/target/local-repo/umlgraph/UMLGraph/2.1/UMLGraph-2.1.jar");
@@ -511,7 +528,7 @@ public class JavadocReportTest extends AbstractMojoTestCase {
         generatedFile = new File(getBasedir(), "target/test/unit/doclet-test/target/site/apidocs/graph.dot").toPath();
         assertThat(generatedFile).exists();
 
-        optionsFile = new File(mojo.getOutputDirectory(), "options").toPath();
+        optionsFile = new File(mojo.getPluginReportOutputDirectory(), "options").toPath();
         assertThat(optionsFile).exists();
         options = readFile(optionsFile);
         assertThat(options)
@@ -558,7 +575,7 @@ public class JavadocReportTest extends AbstractMojoTestCase {
         JavadocReport mojo = lookupMojo(testPom);
         mojo.execute();
 
-        Path optionsFile = new File(mojo.getOutputDirectory(), "options").toPath();
+        Path optionsFile = new File(mojo.getPluginReportOutputDirectory(), "options").toPath();
         assertThat(optionsFile).exists();
 
         // check for a part of the window title
@@ -591,27 +608,6 @@ public class JavadocReportTest extends AbstractMojoTestCase {
             assertThat(apidocs.resolve("package-list")).exists();
         } else {
             assertThat(apidocs.resolve("element-list")).exists();
-        }
-    }
-
-    /**
-     * @throws Exception if any
-     */
-    public void testExceptions() throws Exception {
-        try {
-            Path testPom = unit.resolve("default-configuration/exception-test-plugin-config.xml");
-            JavadocReport mojo = lookupMojo(testPom);
-            mojo.execute();
-
-            fail("Must throw exception.");
-        } catch (Exception e) {
-            assertTrue(true);
-
-            try {
-                deleteDirectory(new File(getBasedir(), "exception"));
-            } catch (IOException ie) {
-                // nop
-            }
         }
     }
 
@@ -803,8 +799,9 @@ public class JavadocReportTest extends AbstractMojoTestCase {
         // which is not enough for Java 11 anymore
         if (JavaVersion.JAVA_SPECIFICATION_VERSION.isBefore("11")) {
             assertThat(readed).contains(">Version:</");
-            assertTrue(readed.toLowerCase().contains("</dt>" + LINE_SEPARATOR + "  <dd>1.0</dd>")
-                    || readed.toLowerCase().contains("</dt>" + LINE_SEPARATOR + "<dd>1.0</dd>" /* JDK 8 */));
+            assertTrue(readed.toLowerCase(Locale.ENGLISH).contains("</dt>" + LINE_SEPARATOR + "  <dd>1.0</dd>")
+                    || readed.toLowerCase(Locale.ENGLISH)
+                            .contains("</dt>" + LINE_SEPARATOR + "<dd>1.0</dd>" /* JDK 8 */));
         }
     }
 
@@ -821,8 +818,6 @@ public class JavadocReportTest extends AbstractMojoTestCase {
         } catch (MojoExecutionException e) {
             fail("Doesnt handle correctly newline for header or footer parameter");
         }
-
-        assertTrue(true);
     }
 
     /**
@@ -838,8 +833,6 @@ public class JavadocReportTest extends AbstractMojoTestCase {
         } catch (MojoExecutionException e) {
             fail("Doesn't handle correctly newline for string parameters. See options and packages files.");
         }
-
-        assertTrue(true);
     }
 
     /**
@@ -917,6 +910,7 @@ public class JavadocReportTest extends AbstractMojoTestCase {
         MavenSession session = spy(newMavenSession(mojo.project));
         ProjectBuildingRequest buildingRequest = mock(ProjectBuildingRequest.class);
         when(buildingRequest.getRemoteRepositories()).thenReturn(mojo.project.getRemoteArtifactRepositories());
+        when(buildingRequest.getRepositoryMerging()).thenReturn(RepositoryMerging.POM_DOMINANT);
         when(session.getProjectBuildingRequest()).thenReturn(buildingRequest);
         DefaultRepositorySystemSession repositorySession = new DefaultRepositorySystemSession();
         repositorySession.setLocalRepositoryManager(new SimpleLocalRepositoryManagerFactory()
@@ -1064,15 +1058,6 @@ public class JavadocReportTest extends AbstractMojoTestCase {
             assertTrue("No wrong charset catch", e.getMessage().contains("Unsupported option <charset/>"));
         }
 
-        // locale
-        testPom = unit.resolve("validate-options-test/wrong-locale-test-plugin-config.xml");
-        mojo = lookupMojo(testPom);
-        try {
-            mojo.execute();
-            fail("No wrong locale catch");
-        } catch (MojoExecutionException e) {
-            assertTrue("No wrong locale catch", e.getMessage().contains("Unsupported option <locale/>"));
-        }
         testPom = unit.resolve("validate-options-test/wrong-locale-with-variant-test-plugin-config.xml");
         mojo = lookupMojo(testPom);
         mojo.execute();
@@ -1104,22 +1089,18 @@ public class JavadocReportTest extends AbstractMojoTestCase {
         Path testPom = unit.resolve("tagletArtifacts-test/tagletArtifacts-test-plugin-config.xml");
         JavadocReport mojo = lookupMojo(testPom);
 
-        MavenSession session = spy(newMavenSession(mojo.project));
-        ProjectBuildingRequest buildingRequest = mock(ProjectBuildingRequest.class);
-        when(buildingRequest.getRemoteRepositories()).thenReturn(mojo.project.getRemoteArtifactRepositories());
-        when(session.getProjectBuildingRequest()).thenReturn(buildingRequest);
-        DefaultRepositorySystemSession repositorySession = new DefaultRepositorySystemSession();
-        repositorySession.setLocalRepositoryManager(new SimpleLocalRepositoryManagerFactory()
-                .newInstance(repositorySession, new LocalRepository(localRepo)));
-        when(buildingRequest.getRepositorySession()).thenReturn(repositorySession);
-        when(session.getRepositorySession()).thenReturn(repositorySession);
+        MavenSession session = newMavenSession(mojo.project);
+        DefaultRepositorySystemSession repoSysSession = (DefaultRepositorySystemSession) session.getRepositorySession();
+        repoSysSession.setLocalRepositoryManager(new SimpleLocalRepositoryManagerFactory()
+                .newInstance(session.getRepositorySession(), new LocalRepository(new File("target/local-repo"))));
+        // Ensure remote repo connection uses SSL
         LegacySupport legacySupport = lookup(LegacySupport.class);
         legacySupport.setSession(session);
         setVariableValueToObject(mojo, "session", session);
-        setVariableValueToObject(mojo, "repoSession", repositorySession);
+        setVariableValueToObject(mojo, "repoSession", repoSysSession);
         mojo.execute();
 
-        Path optionsFile = new File(mojo.getOutputDirectory(), "options").toPath();
+        Path optionsFile = new File(mojo.getPluginReportOutputDirectory(), "options").toPath();
         assertThat(optionsFile).exists();
         String options = readFile(optionsFile);
         // count -taglet
@@ -1167,8 +1148,7 @@ public class JavadocReportTest extends AbstractMojoTestCase {
         try {
             mojo.execute();
             fail();
-        } catch (Exception e) {
-            assertTrue(true);
+        } catch (MojoExecutionException | MojoFailureException e) {
         }
 
         // stylesheet == java

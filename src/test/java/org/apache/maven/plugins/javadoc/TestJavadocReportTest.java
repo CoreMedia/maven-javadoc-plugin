@@ -43,9 +43,12 @@ public class TestJavadocReportTest extends AbstractMojoTestCase {
                 new File(getBasedir(), "src/test/resources/unit/test-javadoc-test/test-javadoc-test-plugin-config.xml");
         TestJavadocReport mojo = (TestJavadocReport) lookupMojo("test-javadoc", testPom);
 
-        MojoExecution mojoExec = new MojoExecution(new Plugin(), "test-javadoc", null);
+        Plugin p = new Plugin();
+        p.setGroupId("org.apache.maven.plugins");
+        p.setArtifactId("maven-javadoc-plugin");
+        MojoExecution mojoExecution = new MojoExecution(p, "test-javadoc", null);
 
-        setVariableValueToObject(mojo, "mojo", mojoExec);
+        setVariableValueToObject(mojo, "mojoExecution", mojoExecution);
 
         MavenProject currentProject = new MavenProjectStub();
         currentProject.setGroupId("GROUPID");
@@ -56,10 +59,10 @@ public class TestJavadocReportTest extends AbstractMojoTestCase {
         mojo.execute();
 
         File generatedFile =
-                new File(getBasedir(), "target/test/unit/test-javadoc-test/target/site/apidocs/maven/AppTest.html");
+                new File(getBasedir(), "target/test/unit/test-javadoc-test/target/site/testapidocs/maven/AppTest.html");
         assertThat(generatedFile).exists();
 
-        File options = new File(getBasedir(), "target/test/unit/test-javadoc-test/target/site/apidocs/options");
+        File options = new File(getBasedir(), "target/test/unit/test-javadoc-test/target/site/testapidocs/options");
         assertThat(FileUtils.fileRead(options)).contains("junit-3.8.1.jar");
     }
 }

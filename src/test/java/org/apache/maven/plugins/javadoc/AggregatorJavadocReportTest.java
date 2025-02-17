@@ -62,8 +62,12 @@ public class AggregatorJavadocReportTest extends AbstractMojoTestCase {
     private JavadocReport lookupMojo(File testPom) throws Exception {
         JavadocReport mojo = (JavadocReport) lookupMojo("aggregate", testPom);
 
-        MojoExecution mojoExec = new MojoExecution(new Plugin(), "aggregate", null);
-        setVariableValueToObject(mojo, "mojo", mojoExec);
+        Plugin p = new Plugin();
+        p.setGroupId("org.apache.maven.plugins");
+        p.setArtifactId("maven-javadoc-plugin");
+        MojoExecution mojoExecution = new MojoExecution(p, "aggregate", null);
+
+        setVariableValueToObject(mojo, "mojoExecution", mojoExecution);
 
         MavenProject currentProject = new MavenProjectStub();
         currentProject.setGroupId("GROUPID");
@@ -226,13 +230,13 @@ public class AggregatorJavadocReportTest extends AbstractMojoTestCase {
         assertTrue(new File(apidocs, "resources/test/doc-files/maven-feather.png").exists());
     }
 
-    public void testAggregateWithModulsNotInSubFolders() throws Exception {
-        File testPom = new File(unit, "aggregate-modules-not-in-subfolders-test/all/pom.xml");
+    public void testAggregateWithModulsNotInSubDirectories() throws Exception {
+        File testPom = new File(unit, "aggregate-modules-not-in-subdirectories-test/all/pom.xml");
         JavadocReport mojo = lookupMojo(testPom);
         mojo.execute();
 
-        File apidocs =
-                new File(getBasedir(), "target/test/unit/aggregate-modules-not-in-subfolders-test/target/site/apidocs");
+        File apidocs = new File(
+                getBasedir(), "target/test/unit/aggregate-modules-not-in-subdirectories-test/target/site/apidocs");
         assertTrue(apidocs.isDirectory());
         assertTrue(getOverviewSummary(apidocs).isFile());
     }
