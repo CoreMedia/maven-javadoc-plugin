@@ -37,9 +37,11 @@ import org.apache.maven.plugin.testing.AbstractMojoTestCase;
 import org.apache.maven.plugin.testing.stubs.MavenProjectStub;
 import org.apache.maven.plugins.javadoc.AbstractFixJavadocMojo.JavaEntityTags;
 import org.apache.maven.shared.invoker.MavenInvocationException;
-import org.codehaus.plexus.languages.java.version.JavaVersion;
 import org.codehaus.plexus.util.FileUtils;
 import org.codehaus.plexus.util.StringUtils;
+import org.eclipse.aether.DefaultRepositorySystemSession;
+import org.eclipse.aether.internal.impl.SimpleLocalRepositoryManagerFactory;
+import org.eclipse.aether.repository.LocalRepository;
 
 import static org.apache.commons.lang3.reflect.MethodUtils.invokeMethod;
 
@@ -317,7 +319,7 @@ public class FixJavadocMojoTest extends AbstractMojoTestCase {
 
         assertEquals(5, javaMethod.getTags().size());
 
-        AbstractFixJavadocMojo mojoInstance = new FixJavadocMojo();
+        AbstractFixJavadocMojo mojoInstance = new FixJavadocMojo(null);
         setVariableValueToObject(mojoInstance, "fixTagsSplitted", new String[] {"all"});
 
         DocletTag tag = javaMethod.getTags().get(0);
@@ -381,7 +383,7 @@ public class FixJavadocMojoTest extends AbstractMojoTestCase {
 
         assertEquals(4, javaMethod.getTags().size());
 
-        AbstractFixJavadocMojo mojoInstance = new FixJavadocMojo();
+        AbstractFixJavadocMojo mojoInstance = new FixJavadocMojo(null);
         setVariableValueToObject(mojoInstance, "fixTagsSplitted", new String[] {"all"});
 
         DocletTag tag = javaMethod.getTags().get(0);
@@ -402,7 +404,7 @@ public class FixJavadocMojoTest extends AbstractMojoTestCase {
     }
 
     public void testInitParameters() throws Throwable {
-        AbstractFixJavadocMojo mojoInstance = new FixJavadocMojo();
+        AbstractFixJavadocMojo mojoInstance = new FixJavadocMojo(null);
         setVariableValueToObject(mojoInstance, "fixTags", "author, version, since, param, return, throws, link");
         setVariableValueToObject(mojoInstance, "defaultSince", "1.0");
         setVariableValueToObject(mojoInstance, "level", "protected");
@@ -429,7 +431,7 @@ public class FixJavadocMojoTest extends AbstractMojoTestCase {
     }
 
     public void testRemoveUnknownExceptions() throws Exception {
-        AbstractFixJavadocMojo mojoInstance = new FixJavadocMojo();
+        AbstractFixJavadocMojo mojoInstance = new FixJavadocMojo(null);
         setVariableValueToObject(mojoInstance, "fixTagsSplitted", new String[] {"all"});
         setVariableValueToObject(mojoInstance, "project", new MavenProjectStub());
 
@@ -497,13 +499,14 @@ public class FixJavadocMojoTest extends AbstractMojoTestCase {
         assertNotNull(mojo);
 
         MavenSession session = newMavenSession(mojo.getProject());
-        // Ensure remote repo connection uses SSL
-        File globalSettingsFile = new File(getBasedir(), "target/test-classes/unit/settings.xml");
-        session.getRequest().setGlobalSettingsFile(globalSettingsFile);
+        ((DefaultRepositorySystemSession) session.getRepositorySession())
+                .setLocalRepositoryManager(new SimpleLocalRepositoryManagerFactory()
+                        .newInstance(
+                                session.getRepositorySession(), new LocalRepository(new File("target/local-repo"))));
         setVariableValueToObject(mojo, "session", session);
 
         // compile the test project
-        invokeCompileGoal(testPom, globalSettingsFile, mojo.getLog());
+        invokeCompileGoal(testPom, mojo.getLog());
         assertTrue(new File(testPomBasedir, "target/classes").exists());
 
         mojo.execute();
@@ -526,7 +529,7 @@ public class FixJavadocMojoTest extends AbstractMojoTestCase {
      * @param log not null
      * @throws MavenInvocationException if any
      */
-    private void invokeCompileGoal(File testPom, File globalSettingsFile, Log log) throws Exception {
+    private void invokeCompileGoal(File testPom, Log log) throws Exception {
         List<String> goals = new ArrayList<>();
         goals.add("clean");
         goals.add("compile");
@@ -536,20 +539,6 @@ public class FixJavadocMojoTest extends AbstractMojoTestCase {
 
         Properties properties = new Properties();
 
-        if (JavaVersion.JAVA_SPECIFICATION_VERSION.isAtLeast("12")) {
-            properties.put("maven.compiler.source", "1.7");
-            properties.put("maven.compiler.target", "1.7");
-        } else if (JavaVersion.JAVA_SPECIFICATION_VERSION.isAtLeast("9")) {
-            properties.put("maven.compiler.source", "1.6");
-            properties.put("maven.compiler.target", "1.6");
-        }
-
-        // @todo unittests shouldn't need to go remote
-        if (JavaVersion.JAVA_SPECIFICATION_VERSION.isBefore("8")) {
-            // ensure that Java7 picks up TLSv1.2 when connecting with Central
-            properties.put("https.protocols", "TLSv1.2");
-        }
-
         JavadocUtil.invokeMaven(
                 log,
                 new File(getBasedir(), "target/local-repo"),
@@ -557,7 +546,10 @@ public class FixJavadocMojoTest extends AbstractMojoTestCase {
                 goals,
                 properties,
                 invokerLogFile,
-                globalSettingsFile);
+                null,
+                null,
+                null,
+                null);
     }
 
     // ----------------------------------------------------------------------

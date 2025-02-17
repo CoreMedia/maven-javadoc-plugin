@@ -32,9 +32,11 @@ import java.net.URL;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
@@ -268,7 +270,7 @@ public class JavadocUtilTest extends PlexusTestCase {
                 .toURL();
         assertTrue(JavadocUtil.isValidPackageList(url, settings, true));
 
-        url = new URL("http://maven.apache.org/plugins/maven-javadoc-plugin/apidocs/package-list");
+        url = new URL("http://maven.apache.org/plugins-archives/maven-javadoc-plugin-3.5.0/apidocs/package-list");
         assertTrue(JavadocUtil.isValidPackageList(url, settings, true));
 
         wrongUrl = new URL("http://maven.apache.org/plugins/maven-javadoc-plugin/apidocs/package-list2");
@@ -582,16 +584,43 @@ public class JavadocUtilTest extends PlexusTestCase {
      */
     public void testPruneDirs() {
         List<String> list = new ArrayList<>();
-        list.add(getBasedir() + "/target/classes");
-        list.add(getBasedir() + "/target/classes");
-        list.add(getBasedir() + "/target/classes");
+        String classesDir = getBasedir() + "/target/classes";
+        list.add(classesDir);
+        list.add(classesDir);
+        list.add(classesDir);
 
-        Set<Path> expected = Collections.singleton(Paths.get(getBasedir(), "target/classes"));
+        Set<Path> expected = Collections.singleton(Paths.get(classesDir));
 
         MavenProjectStub project = new MavenProjectStub();
         project.setFile(new File(getBasedir(), "pom.xml"));
 
         assertEquals(expected, JavadocUtil.pruneDirs(project, list));
+    }
+
+    /**
+     * Method to test prunePaths()
+     *
+     */
+    public void testPrunePaths() {
+        List<String> list = new ArrayList<>();
+        String classesDir = getBasedir() + "/target/classes";
+        String tagletJar = getBasedir()
+                + "/target/test-classes/unit/taglet-test/artifact-taglet/org/tullmann/taglets/1.0/taglets-1.0.jar";
+        list.add(classesDir);
+        list.add(classesDir);
+        list.add(classesDir);
+        list.add(tagletJar);
+        list.add(tagletJar);
+        list.add(tagletJar);
+
+        Set<Path> expectedNoJar = Collections.singleton(Paths.get(classesDir));
+        Set<Path> expectedWithJar = new HashSet<>(Arrays.asList(Paths.get(classesDir), Paths.get(tagletJar)));
+
+        MavenProjectStub project = new MavenProjectStub();
+        project.setFile(new File(getBasedir(), "pom.xml"));
+
+        assertEquals(expectedNoJar, JavadocUtil.prunePaths(project, list, false));
+        assertEquals(expectedWithJar, JavadocUtil.prunePaths(project, list, true));
     }
 
     /**
@@ -625,6 +654,11 @@ public class JavadocUtilTest extends PlexusTestCase {
         assertEquals(
                 path1 + ps + path2 + ps + path1 + ps + path2,
                 JavadocUtil.unifyPathSeparator(path1 + ";" + path2 + ":" + path1 + ":" + path2));
+
+        path1 = "/tmp/maven-javadoc-plugin/src/main/java;\n" + "/tmp/maven-javadoc-plugin/src/main/javadoc\n";
+        assertEquals(
+                "/tmp/maven-javadoc-plugin/src/main/java" + ps + "/tmp/maven-javadoc-plugin/src/main/javadoc",
+                JavadocUtil.unifyPathSeparator(path1));
     }
 
     public void testGetIncludedFiles() {
@@ -645,5 +679,24 @@ public class JavadocUtilTest extends PlexusTestCase {
         } catch (Exception e) {
             // ignored
         }
+    }
+
+    public void testQuotedArgument() throws Exception {
+
+        String value = "      org.apache.uima.analysis_component:\n      org.apache.uima.analysis_engine\n";
+
+        String arg = JavadocUtil.quotedArgument(value);
+        assertEquals("'org.apache.uima.analysis_component:org.apache.uima.analysis_engine'", arg);
+
+        value = "org.apache.uima.analysis_component:org.apache.uima.analysis_engine";
+
+        arg = JavadocUtil.quotedArgument(value);
+        assertEquals("'org.apache.uima.analysis_component:org.apache.uima.analysis_engine'", arg);
+    }
+
+    public void testToList() throws Exception {
+        String value = "     *.internal:org.acme.exclude1.*:\n       org.acme.exclude2\n       ";
+        List<String> values = JavadocUtil.toList(value);
+        assertThat(values).containsExactly("*.internal", "org.acme.exclude1.*", "org.acme.exclude2");
     }
 }

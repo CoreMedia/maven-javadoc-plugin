@@ -29,6 +29,9 @@ import java.net.MalformedURLException;
 import java.net.URISyntaxException;
 import java.net.URL;
 import java.net.URLClassLoader;
+import java.nio.charset.Charset;
+import java.nio.charset.StandardCharsets;
+import java.nio.file.Files;
 import java.nio.file.Paths;
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -66,15 +69,14 @@ import com.thoughtworks.qdox.model.JavaTypeVariable;
 import com.thoughtworks.qdox.parser.ParseException;
 import com.thoughtworks.qdox.type.TypeResolver;
 import org.apache.commons.lang3.ClassUtils;
+import org.apache.commons.lang3.reflect.MethodUtils;
 import org.apache.commons.text.StringEscapeUtils;
 import org.apache.maven.artifact.Artifact;
 import org.apache.maven.artifact.DependencyResolutionRequiredException;
-import org.apache.maven.artifact.repository.ArtifactRepository;
 import org.apache.maven.execution.MavenSession;
 import org.apache.maven.plugin.AbstractMojo;
 import org.apache.maven.plugin.MojoExecutionException;
 import org.apache.maven.plugin.MojoFailureException;
-import org.apache.maven.plugins.annotations.Component;
 import org.apache.maven.plugins.annotations.Parameter;
 import org.apache.maven.project.MavenProject;
 import org.apache.maven.settings.Settings;
@@ -82,13 +84,12 @@ import org.apache.maven.shared.invoker.MavenInvocationException;
 import org.codehaus.plexus.components.interactivity.InputHandler;
 import org.codehaus.plexus.languages.java.version.JavaVersion;
 import org.codehaus.plexus.util.FileUtils;
-import org.codehaus.plexus.util.ReaderFactory;
 import org.codehaus.plexus.util.StringUtils;
 
 /**
  * Abstract class to fix Javadoc documentation and tags in source files.
- * @see <a href="https://docs.oracle.com/en/java/javase/17/docs/specs/javadoc/doc-comment-spec.html#where-tags-can-be-used">Where Tags
- * Can Be Used</a>.
+ *
+ * @see <a href="https://docs.oracle.com/en/java/javase/17/docs/specs/javadoc/doc-comment-spec.html#where-tags-can-be-used">Where Tags Can Be Used</a>
  * @author <a href="mailto:vincent.siveton@gmail.com">Vincent Siveton</a>
  * @since 2.6
  */
@@ -194,24 +195,21 @@ public abstract class AbstractFixJavadocMojo extends AbstractMojo {
     private static final String CLIRR_MAVEN_PLUGIN_ARTIFACTID = "clirr-maven-plugin";
 
     /**
-     * The latest Clirr Maven plugin version <code>2.2.2</code> *
+     * The latest Clirr Maven plugin version <code>2.8</code> *
      */
-    private static final String CLIRR_MAVEN_PLUGIN_VERSION = "2.2.2";
+    private static final String CLIRR_MAVEN_PLUGIN_VERSION = "2.8";
 
     /**
      * The Clirr Maven plugin goal <code>check</code> *
      */
     private static final String CLIRR_MAVEN_PLUGIN_GOAL = "check";
 
+    private static final JavaVersion JAVA_VERSION = JavaVersion.JAVA_SPECIFICATION_VERSION;
+
     /**
      * Java Files Pattern.
      */
     public static final String JAVA_FILES = "**\\/*.java";
-
-    /**
-     * Default version value.
-     */
-    public static final String DEFAULT_VERSION_VALUE = "\u0024Id: \u0024Id";
 
     // ----------------------------------------------------------------------
     // Mojo components
@@ -220,8 +218,11 @@ public abstract class AbstractFixJavadocMojo extends AbstractMojo {
     /**
      * Input handler, needed for command line handling.
      */
-    @Component
     private InputHandler inputHandler;
+
+    public AbstractFixJavadocMojo(InputHandler inputHandler) {
+        this.inputHandler = inputHandler;
+    }
 
     // ----------------------------------------------------------------------
     // Mojo parameters
@@ -229,7 +230,7 @@ public abstract class AbstractFixJavadocMojo extends AbstractMojo {
 
     /**
      * Version to compare the current code against using the
-     * <a href="http://mojo.codehaus.org/clirr-maven-plugin/">Clirr Maven Plugin</a>.
+     * <a href="https://www.mojohaus.org/clirr-maven-plugin/">Clirr Maven Plugin</a>.
      * <br/>
      * See <a href="#defaultSince">defaultSince</a>.
      */
@@ -238,10 +239,8 @@ public abstract class AbstractFixJavadocMojo extends AbstractMojo {
 
     /**
      * Default value for the Javadoc tag <code>&#64;author</code>.
-     * <br/>
-     * If not specified, the <code>user.name</code> defined in the System properties will be used.
      */
-    @Parameter(property = "defaultAuthor")
+    @Parameter(property = "defaultAuthor", defaultValue = "${user.name}")
     private String defaultAuthor;
 
     /**
@@ -252,13 +251,9 @@ public abstract class AbstractFixJavadocMojo extends AbstractMojo {
 
     /**
      * Default value for the Javadoc tag <code>&#64;version</code>.
-     * <br/>
-     * By default, it is <code>&#36;Id:&#36;</code>, corresponding to a
-     * <a href="http://svnbook.red-bean.com/en/1.1/ch07s02.html#svn-ch-7-sect-2.3.4">SVN keyword</a>.
-     * Refer to your SCM to use an other SCM keyword.
      */
-    @Parameter(property = "defaultVersion", defaultValue = DEFAULT_VERSION_VALUE)
-    private String defaultVersion = "\u0024Id: \u0024"; // can't use default-value="\u0024Id: \u0024"
+    @Parameter(property = "defaultVersion")
+    private String defaultVersion;
 
     /**
      * The file encoding to use when reading the source files. If the property
@@ -287,7 +282,7 @@ public abstract class AbstractFixJavadocMojo extends AbstractMojo {
      * <li>link (fix only &#64;link tag)</li>
      * </ul>
      */
-    @Parameter(property = "fixTags", defaultValue = "all")
+    @Parameter(property = "fixTags", defaultValue = FIX_TAGS_ALL)
     private String fixTags;
 
     /**
@@ -347,14 +342,8 @@ public abstract class AbstractFixJavadocMojo extends AbstractMojo {
      * </ul>
      * @see <a href="https://docs.oracle.com/en/java/javase/17/docs/specs/man/javadoc.html#options-for-javadoc">private, protected, public, package options for Javadoc</a>
      */
-    @Parameter(property = "level", defaultValue = "protected")
+    @Parameter(property = "level", defaultValue = LEVEL_PROTECTED)
     private String level;
-
-    /**
-     * The local repository where the artifacts are located, used by the tests.
-     */
-    @Parameter(property = "localRepository")
-    private ArtifactRepository localRepository;
 
     /**
      * Output directory where Java classes will be rewritten.
@@ -511,11 +500,6 @@ public abstract class AbstractFixJavadocMojo extends AbstractMojo {
      * Init goal parameters.
      */
     private void init() {
-        // defaultAuthor
-        if (defaultAuthor == null || defaultAuthor.isEmpty()) {
-            defaultAuthor = System.getProperty("user.name");
-        }
-
         // defaultSince
         int i = defaultSince.indexOf("-" + Artifact.SNAPSHOT_VERSION);
         if (i != -1) {
@@ -552,10 +536,10 @@ public abstract class AbstractFixJavadocMojo extends AbstractMojo {
         // encoding
         if (encoding == null || encoding.isEmpty()) {
             if (getLog().isWarnEnabled()) {
-                getLog().warn("File encoding has not been set, using platform encoding " + ReaderFactory.FILE_ENCODING
+                getLog().warn("File encoding has not been set, using platform encoding " + Charset.defaultCharset()
                         + ", i.e. build is platform dependent!");
             }
-            encoding = ReaderFactory.FILE_ENCODING;
+            encoding = Charset.defaultCharset().name();
         }
 
         // level
@@ -639,17 +623,14 @@ public abstract class AbstractFixJavadocMojo extends AbstractMojo {
 
         String clirrGoal = getFullClirrGoal();
 
-        // http://mojo.codehaus.org/clirr-maven-plugin/check-mojo.html
+        // https://www.mojohaus.org/clirr-maven-plugin/check-mojo.html
         File clirrTextOutputFile = FileUtils.createTempFile(
                 "clirr", ".txt", new File(project.getBuild().getDirectory()));
         Properties properties = new Properties();
         properties.put("textOutputFile", clirrTextOutputFile.getAbsolutePath());
         properties.put("comparisonVersion", comparisonVersion);
         properties.put("failOnError", "false");
-        if (JavaVersion.JAVA_SPECIFICATION_VERSION.isBefore("8")) {
-            // ensure that Java7 picks up TLSv1.2 when connecting with Central
-            properties.put("https.protocols", "TLSv1.2");
-        }
+        properties.put("minSeverity", "info");
 
         File invokerDir = new File(project.getBuild().getDirectory(), "invoker");
         invokerDir.mkdirs();
@@ -657,12 +638,15 @@ public abstract class AbstractFixJavadocMojo extends AbstractMojo {
 
         JavadocUtil.invokeMaven(
                 getLog(),
-                new File(localRepository.getBasedir()),
+                session.getRepositorySession().getLocalRepository().getBasedir(),
                 project.getFile(),
                 Collections.singletonList(clirrGoal),
                 properties,
                 invokerLogFile,
-                session.getRequest().getGlobalSettingsFile());
+                session.getRequest().getGlobalSettingsFile(),
+                session.getRequest().getUserSettingsFile(),
+                session.getRequest().getGlobalToolchainsFile(),
+                session.getRequest().getUserToolchainsFile());
 
         try {
             if (invokerLogFile.exists()) {
@@ -709,13 +693,13 @@ public abstract class AbstractFixJavadocMojo extends AbstractMojo {
         clirrNewClasses = new LinkedList<>();
         clirrNewMethods = new LinkedHashMap<>();
 
-        try (BufferedReader reader = new BufferedReader(ReaderFactory.newReader(clirrTextOutputFile, "UTF-8"))) {
+        try (BufferedReader reader = Files.newBufferedReader(clirrTextOutputFile.toPath(), StandardCharsets.UTF_8)) {
 
             for (String line = reader.readLine(); line != null; line = reader.readLine()) {
                 String[] split = StringUtils.split(line, ":");
                 if (split.length != 4) {
                     if (getLog().isDebugEnabled()) {
-                        getLog().debug("Unable to parse the clirr line: " + line);
+                        getLog().debug("Unable to parse the Clirr line: " + line);
                     }
                     continue;
                 }
@@ -730,7 +714,7 @@ public abstract class AbstractFixJavadocMojo extends AbstractMojo {
                     continue;
                 }
 
-                // http://clirr.sourceforge.net/clirr-core/exegesis.html
+                // https://clirr.sourceforge.net/clirr-core/exegesis.html
                 // 7011 - Method Added
                 // 7012 - Method Added to Interface
                 // 8000 - Class Added
@@ -856,12 +840,22 @@ public abstract class AbstractFixJavadocMojo extends AbstractMojo {
             for (String filename : classPath) {
                 try {
                     urls.add(new File(filename).toURI().toURL());
-                } catch (MalformedURLException e) {
+                } catch (MalformedURLException | IllegalArgumentException e) {
                     throw new MojoExecutionException("MalformedURLException: " + e.getMessage(), e);
                 }
             }
 
-            projectClassLoader = new URLClassLoader(urls.toArray(new URL[urls.size()]), null);
+            ClassLoader parent = null;
+            if (JAVA_VERSION.isAtLeast("9")) {
+                try {
+                    parent = (ClassLoader) MethodUtils.invokeStaticMethod(ClassLoader.class, "getPlatformClassLoader");
+                } catch (Exception e) {
+                    throw new MojoExecutionException(
+                            "Failed to invoke ClassLoader#getPlatformClassLoader() dynamically", e);
+                }
+            }
+
+            projectClassLoader = new URLClassLoader(urls.toArray(new URL[urls.size()]), parent);
         }
 
         return projectClassLoader;
@@ -2061,26 +2055,6 @@ public abstract class AbstractFixJavadocMojo extends AbstractMojo {
     }
 
     /**
-     * @param sb             not null
-     * @param indent         not null
-     * @param separatorAdded
-     * @return true if separator has been added.
-     */
-    private boolean appendDefaultAuthorTag(final StringBuilder sb, final String indent, boolean separatorAdded) {
-        if (!fixTag(AUTHOR_TAG)) {
-            return separatorAdded;
-        }
-
-        if (!separatorAdded) {
-            appendSeparator(sb, indent);
-            separatorAdded = true;
-        }
-
-        appendDefaultAuthorTag(sb, indent);
-        return separatorAdded;
-    }
-
-    /**
      * @param sb     not null
      * @param indent not null
      */
@@ -2129,31 +2103,11 @@ public abstract class AbstractFixJavadocMojo extends AbstractMojo {
     }
 
     /**
-     * @param sb             not null
-     * @param indent         not null
-     * @param separatorAdded
-     * @return true if separator has been added.
-     */
-    private boolean appendDefaultVersionTag(final StringBuilder sb, final String indent, boolean separatorAdded) {
-        if (!fixTag(VERSION_TAG)) {
-            return separatorAdded;
-        }
-
-        if (!separatorAdded) {
-            appendSeparator(sb, indent);
-            separatorAdded = true;
-        }
-
-        appendDefaultVersionTag(sb, indent);
-        return separatorAdded;
-    }
-
-    /**
      * @param sb     not null
      * @param indent not null
      */
     private void appendDefaultVersionTag(final StringBuilder sb, final String indent) {
-        if (!fixTag(VERSION_TAG)) {
+        if (!fixTag(VERSION_TAG) || StringUtils.isEmpty(defaultVersion)) {
             return;
         }
 

@@ -20,7 +20,6 @@ package org.apache.maven.plugins.javadoc;
 
 import java.io.BufferedReader;
 import java.io.File;
-import java.io.FileInputStream;
 import java.io.FileNotFoundException;
 import java.io.FileOutputStream;
 import java.io.IOException;
@@ -41,6 +40,7 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.nio.file.SimpleFileVisitor;
+import java.nio.file.StandardCopyOption;
 import java.nio.file.attribute.BasicFileAttributes;
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -57,6 +57,7 @@ import java.util.jar.JarInputStream;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 import java.util.regex.PatternSyntaxException;
+import java.util.stream.Collectors;
 
 import org.apache.http.HttpHeaders;
 import org.apache.http.HttpHost;
@@ -93,13 +94,11 @@ import org.apache.maven.shared.invoker.InvocationResult;
 import org.apache.maven.shared.invoker.Invoker;
 import org.apache.maven.shared.invoker.MavenInvocationException;
 import org.apache.maven.shared.invoker.PrintStreamHandler;
+import org.apache.maven.shared.utils.io.DirectoryScanner;
+import org.apache.maven.shared.utils.io.FileUtils;
 import org.apache.maven.wagon.proxy.ProxyInfo;
 import org.apache.maven.wagon.proxy.ProxyUtils;
 import org.codehaus.plexus.languages.java.version.JavaVersion;
-import org.codehaus.plexus.util.DirectoryScanner;
-import org.codehaus.plexus.util.FileUtils;
-import org.codehaus.plexus.util.IOUtil;
-import org.codehaus.plexus.util.StringUtils;
 import org.codehaus.plexus.util.cli.CommandLineException;
 import org.codehaus.plexus.util.cli.CommandLineUtils;
 import org.codehaus.plexus.util.cli.Commandline;
@@ -120,30 +119,45 @@ public class JavadocUtil {
                     + "environment variable using -Xms:<size> and -Xmx:<size>.";
 
     /**
-     * Method that removes the invalid directories in the specified directories. <b>Note</b>: All elements in
-     * <code>dirs</code> could be an absolute or relative against the project's base directory <code>String</code> path.
+     * Method that removes invalid classpath elements in the specified paths.
+     * <b>Note</b>: All elements in {@code paths} could be absolute or relative against the project's base directory.
+     * When pruning classpath elements, you can optionally include files in the result, otherwise only directories are
+     * permitted.
      *
      * @param project the current Maven project not null
-     * @param dirs the collection of <code>String</code> directories path that will be validated.
-     * @return a List of valid <code>String</code> directories absolute paths.
+     * @param paths the collection of paths that will be validated
+     * @param includeFiles whether to include files in the result as well
+     * @return a list of valid classpath elements as absolute paths
      */
-    public static Collection<Path> pruneDirs(MavenProject project, Collection<String> dirs) {
+    public static Collection<Path> prunePaths(MavenProject project, Collection<String> paths, boolean includeFiles) {
         final Path projectBasedir = project.getBasedir().toPath();
 
-        Set<Path> pruned = new LinkedHashSet<>(dirs.size());
-        for (String dir : dirs) {
-            if (dir == null) {
+        Set<Path> pruned = new LinkedHashSet<>(paths.size());
+        for (String path : paths) {
+            if (path == null) {
                 continue;
             }
 
-            Path directory = projectBasedir.resolve(dir);
+            Path resolvedPath = projectBasedir.resolve(path);
 
-            if (Files.isDirectory(directory)) {
-                pruned.add(directory.toAbsolutePath());
+            if (Files.isDirectory(resolvedPath) || includeFiles && Files.isRegularFile(resolvedPath)) {
+                pruned.add(resolvedPath.toAbsolutePath());
             }
         }
 
         return pruned;
+    }
+
+    /**
+     * Method that removes the invalid classpath directories in the specified directories.
+     * <b>Note</b>: All elements in {@code dirs} could be absolute or relative against the project's base directory.
+     *
+     * @param project the current Maven project not null
+     * @param dirs the collection of directories that will be validated
+     * @return a list of valid claspath elements as absolute paths
+     */
+    public static Collection<Path> pruneDirs(MavenProject project, Collection<String> dirs) {
+        return prunePaths(project, dirs, false);
     }
 
     /**
@@ -200,24 +214,25 @@ public class JavadocUtil {
     }
 
     /**
-     * Convenience method to wrap an argument value in single quotes (i.e. <code>'</code>). Intended for values which
-     * may contain whitespaces. <br>
-     * To prevent javadoc error, the line separator (i.e. <code>\n</code>) are skipped.
+     * Convenience method to wrap a command line option-argument in single quotes (i.e. <code>'</code>). Intended for values which
+     * may contain whitespace. <br>
+     * Line feeds (i.e. <code>\n</code>) are replaced with spaces, and single quotes are backslash escaped.
      *
-     * @param value the argument value.
-     * @return argument with quote
+     * @param value the option-argument
+     * @return quoted option-argument
      */
     protected static String quotedArgument(String value) {
+        if (value == null) {
+            return null;
+        }
         String arg = value;
 
-        if (arg != null && !arg.isEmpty()) {
-            if (arg.contains("'")) {
-                arg = StringUtils.replace(arg, "'", "\\'");
-            }
-            arg = "'" + arg + "'";
+        List<String> list = Arrays.stream(arg.split("\n")).map(String::trim).collect(Collectors.toList());
+        arg = String.join("", list);
 
-            // To prevent javadoc error
-            arg = StringUtils.replace(arg, "\n", " ");
+        if (arg != null && !arg.isEmpty()) {
+            arg = arg.replace("'", "\\'");
+            arg = "'" + arg + "'";
         }
 
         return arg;
@@ -242,7 +257,7 @@ public class JavadocUtil {
 
                 for (int i = 0; i < split.length; i++) {
                     if (i != split.length - 1) {
-                        pathBuilder.append(split[i]).append("\\'");
+                        pathBuilder.append(split[i].trim()).append("\\'");
                     } else {
                         pathBuilder.append(split[i]);
                     }
@@ -258,7 +273,7 @@ public class JavadocUtil {
     }
 
     /**
-     * Convenience method that copy all <code>doc-files</code> directories from <code>javadocDir</code> to the
+     * Convenience method that copies all <code>doc-files</code> directories from <code>javadocDir</code> to the
      * <code>outputDirectory</code>.
      *
      * @param outputDirectory the output directory
@@ -280,18 +295,18 @@ public class JavadocUtil {
             String current;
             while (st.hasMoreTokens()) {
                 current = st.nextToken();
-                excludes.add("**/" + current + "/**");
+                excludes.add("**/" + current.trim() + "/**");
             }
         }
 
         List<String> docFiles = FileUtils.getDirectoryNames(
-                javadocDir, "resources,**/doc-files", StringUtils.join(excludes.iterator(), ","), false, true);
+                javadocDir, "resources,**/doc-files", String.join(",", excludes), false, true);
         for (String docFile : docFiles) {
             File docFileOutput = new File(outputDirectory, docFile);
-            FileUtils.mkdir(docFileOutput.getAbsolutePath());
+            Files.createDirectories(Paths.get(docFileOutput.getAbsolutePath()));
             FileUtils.copyDirectoryStructure(new File(javadocDir, docFile), docFileOutput);
             List<String> files = FileUtils.getFileAndDirectoryNames(
-                    docFileOutput, StringUtils.join(excludes.iterator(), ","), null, true, true, true, true);
+                    docFileOutput, String.join(",", excludes), null, true, true, true, true);
             for (String filename : files) {
                 File file = new File(filename);
 
@@ -376,8 +391,8 @@ public class JavadocUtil {
             // Usage of wildcard was bad specified and bad implemented, i.e. using String.contains()
             //   without respecting surrounding context
             // Following implementation should match requirements as defined in the examples:
-            // - A wildcard at the beginning should match 1 or more folders
-            // - Any other wildcard must match exactly one folder
+            // - A wildcard at the beginning should match one or more directories
+            // - Any other wildcard must match exactly one directory
             Pattern p = Pattern.compile(excludePackagename
                     .replace(".", regexFileSeparator)
                     .replaceFirst("^\\*", ".+")
@@ -397,9 +412,10 @@ public class JavadocUtil {
      * Convenience method that gets the files to be included in the javadoc.
      *
      * @param sourceDirectory the directory where the source files are located
-     * @param excludePackages the packages to be excluded in the javadocs
-     * @param sourceFileIncludes files to include.
-     * @param sourceFileExcludes files to exclude.
+     * @param sourceFileIncludes files to include
+     * @param sourceFileExcludes files to exclude
+     * @param excludePackages packages to be excluded from the javadocs
+     * @return the files from which javadoc should be generated
      */
     protected static List<String> getFilesFromSource(
             File sourceDirectory,
@@ -410,9 +426,9 @@ public class JavadocUtil {
         if (sourceFileIncludes == null) {
             sourceFileIncludes = Collections.singletonList("**/*.java");
         }
-        ds.setIncludes(sourceFileIncludes.toArray(new String[sourceFileIncludes.size()]));
-        if (sourceFileExcludes != null && sourceFileExcludes.size() > 0) {
-            ds.setExcludes(sourceFileExcludes.toArray(new String[sourceFileExcludes.size()]));
+        ds.setIncludes(sourceFileIncludes.toArray(new String[0]));
+        if (sourceFileExcludes != null && !sourceFileExcludes.isEmpty()) {
+            ds.setExcludes(sourceFileExcludes.toArray(new String[0]));
         }
         ds.setBasedir(sourceDirectory);
         ds.scan();
@@ -457,18 +473,21 @@ public class JavadocUtil {
         CommandLineUtils.StringStreamConsumer err = new JavadocOutputStreamConsumer();
 
         int exitCode = CommandLineUtils.executeCommandLine(cmd, out, err);
-
+        String errOutput = err.getOutput(); // non-null
         if (exitCode != 0) {
-            StringBuilder msg = new StringBuilder("Exit code: " + exitCode + " - " + err.getOutput());
+            StringBuilder msg = new StringBuilder("Exit code: " + exitCode + " - " + errOutput);
             msg.append('\n');
             msg.append("Command line was:").append(CommandLineUtils.toString(cmd.getCommandline()));
             throw new CommandLineException(msg.toString());
         }
 
-        if (StringUtils.isNotEmpty(err.getOutput())) {
-            return JavaVersion.parse(extractJavadocVersion(err.getOutput()));
-        } else if (StringUtils.isNotEmpty(out.getOutput())) {
-            return JavaVersion.parse(extractJavadocVersion(out.getOutput()));
+        if (!errOutput.isEmpty()) {
+            return JavaVersion.parse(extractJavadocVersion(errOutput));
+        } else {
+            String outOutput = out.getOutput(); // non-null
+            if (!outOutput.isEmpty()) {
+                return JavaVersion.parse(extractJavadocVersion(outOutput));
+            }
         }
 
         throw new IllegalArgumentException("No output found from the command line 'javadoc -J-version'");
@@ -692,13 +711,13 @@ public class JavadocUtil {
      */
     protected static void copyResource(URL url, File file) throws IOException {
         if (file == null) {
-            throw new IOException("The file can't be null.");
+            throw new NullPointerException("The file can't be null.");
         }
         if (url == null) {
-            throw new IOException("The url could not be null.");
+            throw new NullPointerException("The url could not be null.");
         }
 
-        FileUtils.copyURLToFile(url, file);
+        Files.copy(url.openStream(), file.toPath(), StandardCopyOption.REPLACE_EXISTING);
     }
 
     /**
@@ -714,6 +733,9 @@ public class JavadocUtil {
      * @param properties the properties for the goals, could be null.
      * @param invokerLog the log file where the invoker will be written, if null using <code>System.out</code>.
      * @param globalSettingsFile reference to settings file, could be null.
+     * @param userSettingsFile reference to user settings file, could be null.
+     * @param globalToolchainsFile reference to toolchains file, could be null.
+     * @param userToolchainsFile reference to user toolchains file, could be null.
      * @throws MavenInvocationException if any
      * @since 2.6
      */
@@ -724,7 +746,10 @@ public class JavadocUtil {
             List<String> goals,
             Properties properties,
             File invokerLog,
-            File globalSettingsFile)
+            File globalSettingsFile,
+            File userSettingsFile,
+            File globalToolchainsFile,
+            File userToolchainsFile)
             throws MavenInvocationException {
         if (projectFile == null) {
             throw new IllegalArgumentException("projectFile should be not null.");
@@ -732,7 +757,7 @@ public class JavadocUtil {
         if (!projectFile.isFile()) {
             throw new IllegalArgumentException(projectFile.getAbsolutePath() + " is not a file.");
         }
-        if (goals == null || goals.size() == 0) {
+        if (goals == null || goals.isEmpty()) {
             throw new IllegalArgumentException("goals should be not empty.");
         }
         if (localRepositoryDir == null || !localRepositoryDir.isDirectory()) {
@@ -759,14 +784,25 @@ public class JavadocUtil {
         InvocationRequest request = new DefaultInvocationRequest();
         request.setBaseDirectory(projectFile.getParentFile());
         request.setPomFile(projectFile);
-        request.setGlobalSettingsFile(globalSettingsFile);
+        if (globalSettingsFile != null && globalSettingsFile.isFile()) {
+            request.setGlobalSettingsFile(globalSettingsFile);
+        }
+        if (userSettingsFile != null && userSettingsFile.isFile()) {
+            request.setUserSettingsFile(userSettingsFile);
+        }
+        if (globalToolchainsFile != null && globalToolchainsFile.isFile()) {
+            request.setGlobalToolchainsFile(globalToolchainsFile);
+        }
+        if (userToolchainsFile != null && userToolchainsFile.isFile()) {
+            request.setToolchainsFile(userToolchainsFile);
+        }
         request.setBatchMode(true);
         if (log != null) {
             request.setDebug(log.isDebugEnabled());
         } else {
             request.setDebug(true);
         }
-        request.setGoals(goals);
+        request.addArgs(goals);
         if (properties != null) {
             request.setProperties(properties);
         }
@@ -819,13 +855,12 @@ public class JavadocUtil {
      *
      * @param javaFile not null
      * @param encoding could be null
-     * @return the content with unified line separator of the given javaFile using the given encoding.
-     * @see FileUtils#fileRead(File, String)
+     * @return the content of the given javaFile using the given encoding
      * @since 2.6.1
      */
     protected static String readFile(final File javaFile, final String encoding) {
         try {
-            return FileUtils.fileRead(javaFile, encoding);
+            return new String(Files.readAllBytes(javaFile.toPath()), Charset.forName(encoding));
         } catch (IOException e) {
             return null;
         }
@@ -843,7 +878,7 @@ public class JavadocUtil {
      *
      * @param path which can contain multiple paths separated with a colon (<code>:</code>) or a semi-colon
      *            (<code>;</code>), platform independent. Could be null.
-     * @return the path splitted by colon or semi-colon or <code>null</code> if path was <code>null</code>.
+     * @return the path split by colon or semi-colon or <code>null</code> if path was <code>null</code>.
      * @since 2.6.1
      */
     protected static String[] splitPath(final String path) {
@@ -857,7 +892,7 @@ public class JavadocUtil {
             subpaths.add(pathTokenizer.nextToken());
         }
 
-        return subpaths.toArray(new String[subpaths.size()]);
+        return subpaths.toArray(new String[0]);
     }
 
     /**
@@ -881,7 +916,7 @@ public class JavadocUtil {
             return null;
         }
 
-        return StringUtils.join(splitPath(path), File.pathSeparator);
+        return String.join(File.pathSeparator, splitPath(path));
     }
 
     // ----------------------------------------------------------------------
@@ -900,7 +935,7 @@ public class JavadocUtil {
 
         List<String> classes = new ArrayList<>();
         Pattern pattern = Pattern.compile("(?i)^(META-INF/versions/(?<v>[0-9]+)/)?(?<n>.+)[.]class$");
-        try (JarInputStream jarStream = new JarInputStream(new FileInputStream(jarFile))) {
+        try (JarInputStream jarStream = new JarInputStream(Files.newInputStream(jarFile.toPath()))) {
             for (JarEntry jarEntry = jarStream.getNextJarEntry();
                     jarEntry != null;
                     jarEntry = jarStream.getNextJarEntry()) {
@@ -983,7 +1018,7 @@ public class JavadocUtil {
         InvocationOutputHandler outputHandler = new PrintStreamHandler(ps, false);
         request.setOutputHandler(outputHandler);
 
-        try {
+        try (OutputStream closeMe = os) {
             outputHandler.consumeLine("Invoking Maven for the goals: " + goals + " with "
                     + (properties == null ? "no properties" : "properties=" + properties));
             outputHandler.consumeLine("");
@@ -992,14 +1027,9 @@ public class JavadocUtil {
             outputHandler.consumeLine("JAVA_HOME=" + getJavaHome(log));
             outputHandler.consumeLine("JAVA_OPTS=" + getJavaOpts(log));
             outputHandler.consumeLine("");
+            return invoker.execute(request);
         } catch (IOException ioe) {
             throw new MavenInvocationException("IOException while consuming invocation output", ioe);
-        }
-
-        try {
-            return invoker.execute(request);
-        } finally {
-            IOUtil.close(os);
         }
     }
 
@@ -1015,7 +1045,7 @@ public class JavadocUtil {
         File m2Home = new File(mavenHome);
         if (!m2Home.exists()) {
             if (log != null && log.isErrorEnabled()) {
-                log.error("Cannot find Maven application directory. Either specify 'maven.home' system property.");
+                log.error("Cannot find Maven application directory. Specify 'maven.home' system property.");
             }
         }
 
@@ -1152,7 +1182,7 @@ public class JavadocUtil {
                     lookahead = nextToken;
                 }
             }
-            return token;
+            return token.trim();
         }
     }
 
@@ -1196,7 +1226,7 @@ public class JavadocUtil {
                 sb.append(elementSuffix);
             }
 
-            result.add(sb.toString());
+            result.add(sb.toString().trim());
         }
 
         return result;
@@ -1223,7 +1253,7 @@ public class JavadocUtil {
         return result;
     }
 
-    // TODO: move to plexus-utils or use something appropriate from there
+    // TODO: deprecate in favor of Path.relativize
     public static String toRelative(File basedir, String absolutePath) {
         String relative;
 
@@ -1264,13 +1294,13 @@ public class JavadocUtil {
     }
 
     /**
-     * Execute an Http request at the given URL, follows redirects, and returns the last redirect locations. For URLs
+     * Execute an HTTP request to the given URL, follow redirects, and return the last redirect location. For URLs
      * that aren't http/https, this does nothing and simply returns the given URL unchanged.
      *
-     * @param url URL.
-     * @param settings Maven settings.
-     * @return Last redirect location.
-     * @throws IOException if there was an error during the Http request.
+     * @param url URL
+     * @param settings Maven settings
+     * @return final URL after all redirects have been followed
+     * @throws IOException if there was an error during the HTTP request
      */
     protected static URL getRedirectUrl(URL url, Settings settings) throws IOException {
         String protocol = url.getProtocol();
@@ -1486,7 +1516,7 @@ public class JavadocUtil {
         builder.setUserAgent("Mozilla/4.0 (compatible; MSIE 6.0; Windows NT 5.0)");
 
         // Some server reject requests that do not have an Accept header
-        builder.setDefaultHeaders(Arrays.asList(new BasicHeader(HttpHeaders.ACCEPT, "*/*")));
+        builder.setDefaultHeaders(Collections.singletonList(new BasicHeader(HttpHeaders.ACCEPT, "*/*")));
 
         if (settings != null && settings.getActiveProxy() != null) {
             Proxy activeProxy = settings.getActiveProxy();
@@ -1494,14 +1524,19 @@ public class JavadocUtil {
             ProxyInfo proxyInfo = new ProxyInfo();
             proxyInfo.setNonProxyHosts(activeProxy.getNonProxyHosts());
 
-            if (StringUtils.isNotEmpty(activeProxy.getHost())
+            String activeProxyHost = activeProxy.getHost();
+            if (activeProxyHost != null
+                    && !activeProxyHost.isEmpty()
                     && (url == null || !ProxyUtils.validateNonProxyHosts(proxyInfo, url.getHost()))) {
                 HttpHost proxy = new HttpHost(activeProxy.getHost(), activeProxy.getPort());
                 builder.setProxy(proxy);
 
-                if (StringUtils.isNotEmpty(activeProxy.getUsername()) && activeProxy.getPassword() != null) {
+                String activeProxyUsername = activeProxy.getUsername();
+                if (activeProxyUsername != null
+                        && !activeProxyUsername.isEmpty()
+                        && activeProxy.getPassword() != null) {
                     Credentials credentials =
-                            new UsernamePasswordCredentials(activeProxy.getUsername(), activeProxy.getPassword());
+                            new UsernamePasswordCredentials(activeProxyUsername, activeProxy.getPassword());
 
                     CredentialsProvider credentialsProvider = new BasicCredentialsProvider();
                     credentialsProvider.setCredentials(AuthScope.ANY, credentials);
