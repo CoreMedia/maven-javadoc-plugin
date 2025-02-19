@@ -1339,6 +1339,12 @@ public abstract class AbstractJavadocMojo extends AbstractMojo {
 
     /**
      * Specifies the path of an additional HTML stylesheet file relative to the {@code javadocDirectory}
+     * <br/>
+     * The file could be an absolute File path.
+     * <br/>
+     * Since 3.12.0-2, it could be also be a path from a resource in the current project source directories
+     * (i.e. <code>src/main/java</code>, <code>src/main/resources</code> or <code>src/main/javadoc</code>)
+     * or from a resource in the Javadoc plugin dependencies
      * Example:
      * <pre>
      *     &lt;addStylesheets&gt;
@@ -2858,8 +2864,12 @@ public abstract class AbstractJavadocMojo extends AbstractMojo {
             return Optional.of(addstylesheetfile);
         }
 
-        throw new MavenReportException(
-                "additional stylesheet file does not exist: " + addstylesheetfile.getAbsolutePath());
+        Optional<File> resource = getResource(new File(javadocOutputDirectory, stylesheet), stylesheet);
+        if (resource.isPresent()) {
+            return resource;
+        }
+
+        throw new MavenReportException("additional stylesheet file does not exist: " + stylesheet);
     }
 
     /**
