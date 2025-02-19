@@ -2827,6 +2827,8 @@ public abstract class AbstractJavadocMojo extends AbstractMojo {
         return getResource(new File(javadocOutputDirectory, DEFAULT_CSS_NAME), stylesheetfile);
     }
 
+    // Workaround for https://issues.apache.org/jira/browse/MJAVADOC-827
+    // Pass actual javadocOutputDirectory and use that instead of getJavadocDirectory() in getAddStylesheet()
     private void addAddStyleSheets(File javadocOutputDirectory, List<String> arguments) throws MavenReportException {
         if (addStylesheets == null) {
             return;
@@ -2864,6 +2866,8 @@ public abstract class AbstractJavadocMojo extends AbstractMojo {
             return Optional.of(addstylesheetfile);
         }
 
+        // Workaround for https://issues.apache.org/jira/browse/MJAVADOC-827
+        // Read additional stylesheet also from dependencies
         Optional<File> resource = getResource(new File(javadocOutputDirectory, stylesheet), stylesheet);
         if (resource.isPresent()) {
             return resource;
