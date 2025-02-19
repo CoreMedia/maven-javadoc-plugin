@@ -2827,13 +2827,13 @@ public abstract class AbstractJavadocMojo extends AbstractMojo {
         return getResource(new File(javadocOutputDirectory, DEFAULT_CSS_NAME), stylesheetfile);
     }
 
-    private void addAddStyleSheets(List<String> arguments) throws MavenReportException {
+    private void addAddStyleSheets(File javadocOutputDirectory, List<String> arguments) throws MavenReportException {
         if (addStylesheets == null) {
             return;
         }
 
         for (String addStylesheet : addStylesheets) {
-            Optional<File> styleSheet = getAddStylesheet(getJavadocDirectory(), addStylesheet);
+            Optional<File> styleSheet = getAddStylesheet(javadocOutputDirectory, addStylesheet);
 
             if (styleSheet.isPresent()) {
                 addArgIfNotEmpty(
@@ -4894,7 +4894,7 @@ public abstract class AbstractJavadocMojo extends AbstractMojo {
                     JavadocUtil.quotedPathArgument(stylesheetfile.get().getAbsolutePath()));
         }
 
-        addAddStyleSheets(arguments);
+        addAddStyleSheets(javadocOutputDirectory, arguments);
 
         if ((sourcepath != null && !sourcepath.isEmpty()) && !isJavaDocVersionAtLeast(SINCE_JAVADOC_1_5)) {
             addArgIfNotEmpty(arguments, "-subpackages", subpackages, SINCE_JAVADOC_1_4);
